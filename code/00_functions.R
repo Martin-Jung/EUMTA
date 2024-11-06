@@ -6,8 +6,8 @@
 #'
 #' @author Martin Jung
 #' @keywords targets, indicators
-calc_targets <- function(current_range, potential_range,
-                         data = NULL,
+calc_targets <- function(data = NULL,
+                         current_range, potential_range,
                          option = "flat", default_target = 0.3){
   assertthat::assert_that(
     is.character(option),
@@ -18,6 +18,10 @@ calc_targets <- function(current_range, potential_range,
   # Match target calculation option
   option <- match.arg(option, c("none", "flat", "loglinear", "extinctrisk"),
                       several.ok = FALSE)
+
+  # Drop units if existing
+  if(inherits(current_range, "units")) current_range <- units::drop_units(current_range)
+  if(inherits(potential_range, "units")) potential_range <- units::drop_units(potential_range)
 
   # Flat targets
   if(option == "flat"){
@@ -30,33 +34,28 @@ calc_targets <- function(current_range, potential_range,
     # Simply multiply the potential ranges with the flat target
     out <- data.frame(option = option,
                       target_absolute = potential_range * default_target,
-                      target_relative = (potential_range * default_target)/potential_range)
+                      target_relative = (potential_range * default_target)/potential_range
+                      )
   } else if(option == "loglinear"){
     # Log-linear targets
     tr <- prioritizr:::loglinear_interpolation(
-      potential_range |> units::drop_units(),
+      potential_range,
       1000, # lower_bound_amount,
       0.9,  # lower_bound_target
       250000, # upper_bound_amount,
       0.2 # upper_bound_target
-    ) * potential_range |>
-      units::drop_units()
+    ) * potential_range
 
     # Cap to 1 million km2
     if(any(tr>1e6)) tr[tr>1e6] <- 1e6
-    # Set to km2
-    tr <- units::set_units(tr, "km2")
-
     # Format output
     out <- data.frame(option = option,
                       target_absolute = tr,
-                      target_relative = (tr / potential_range) |> units::drop_units())
-
+                      target_relative = (tr / potential_range) )
   } else if(option == "extinctrisk"){
     # Resolution is in km!
     assertthat::assert_that(
       is.data.frame(data),utils::hasName(data, "code"),
-      units::deparse_unit(current_range) == "km2",
       anyDuplicated(data$code) == 0
     )
     out <- data |>
@@ -72,9 +71,15 @@ calc_targets <- function(current_range, potential_range,
                     target_relative = ifelse(  (target_absolute / size)>=1, 1, (target_absolute / size) ) ) |>
       ungroup()
   }
+
+  ## Set correct units
+  # Set to km2
+  out$target_absolute <- units::set_units(out$target_absolute, "km2")
+
   # Return targets
   assertthat::assert_that(is.data.frame(out), !anyNA(out),
                           utils::hasName(out, "target_relative"),
-                          utils::hasName(out, "target_absolute") )
+                          utils::hasName(out, "target_absolute")
+                          )
   return(out)
 }

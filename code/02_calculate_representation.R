@@ -137,6 +137,7 @@ for(name in lyrs$name){
 
   # Check that name is correct
   if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$speciescode
+  if(!utils::hasName(data_sens, "region")) data_sens$region <- data_sens$country
 
   assertthat::assert_that(utils::hasName(data_sens, "code"))
 
@@ -158,7 +159,7 @@ for(name in lyrs$name){
                                          force_df = TRUE)
       # Combine with sub and summarize
       o <- dplyr::bind_cols(sub, ex) |>
-        dplyr::group_by(maptype, season, code) |>
+        dplyr::group_by(maptype, season, region, code) |>
         dplyr::reframe(conservedarea_m2 =
                          units::set_units(
                            sum(sum) * Reduce("*",terra::res(consar)), "m2"
@@ -170,11 +171,10 @@ for(name in lyrs$name){
       # And other species_code
       o <- o |> dplyr::mutate(speciescodeEU = unique(sub$speciescodeEU), .before = "code")
 
-
       # Also add total distribution area
       o <- dplyr::left_join(
         o,
-        sub |> dplyr::group_by(maptype, season, code) |>
+        sub |> dplyr::group_by(maptype, season, region, code) |>
           dplyr::reframe(totalarea_m2 = sum(sf::st_area(geom)))
       )
       # Check that all area equal/smaller
