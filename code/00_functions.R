@@ -83,3 +83,29 @@ calc_targets <- function(data = NULL,
                           )
   return(out)
 }
+
+#' MTA function
+#' @description
+#' Small helper function to calculate the MTA for a given set of data.
+#' @param target_relative A [`numeric`] value between 0 and 1 indicating the target
+#' for a given feature.
+#' @param proportion A [`numeric`] value between 0 and 1 indicating the proportion
+#' of conserved area.
+#' @returns A [`numeric`] value.
+#' @keywords indicator
+mta <- function(target_relative, proportion){
+  assertthat::assert_that(
+    is.numeric(target_relative),
+    all( dplyr::between(target_relative, 0, 1)),
+    # For proportion
+    is.numeric(proportion),
+    all( dplyr::between(proportion, 0, 1))
+
+  )
+
+  return(
+    mean(
+      1 - (pmin(1, pmax(0, ( target_relative - proportion ) )) / target_relative )
+    )
+  )
+}

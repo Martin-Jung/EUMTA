@@ -33,6 +33,10 @@ assertthat::assert_that(file.exists(path_n2k))
 corine <- terra::rast( paste0(path_corine, "CLC2000ACC_V2018_20.tif") )
 background <- emptyraster(corine)
 
+# Also get the reference grid
+background_10km <- terra::rast("../11.1.2_ReferenceGrids/ReferenceGrid_Europe_bin_10000m.tif") |>
+  terra::project(terra::crs(background))
+
 # Get the N2k areas
 lyrs <- sf::st_layers("temporary_data/N2k.gpkg")
 
@@ -87,8 +91,7 @@ assertthat::assert_that(!anyNA(n2k$YEAR_GROUP))
 # Here the idea is write one layer per YEAR GROUP
 # so as to capture expansion per years. Note
 
-for(yg in levels(n2k$YEAR_GROUP)){
-  if(file.exists(paste0(path_temp, "natura2000_",as.character(yg),".tif"))) next()
+for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
   message(yg)
   # Subset to all year prior to the last as cumulative expansion
   lastyear <- switch (as.character(yg),
@@ -98,6 +101,8 @@ for(yg in levels(n2k$YEAR_GROUP)){
     "2012-2018" = 2018,
     "2018-2024" = 2024
   )
+  if(file.exists(paste0(path_temp, "natura2000_",as.character(lastyear),".tif"))) next()
+
   # Subset including all sites younger and including this year
   sub <- subset(n2k, YEAR <= lastyear)
 
@@ -108,6 +113,16 @@ for(yg in levels(n2k$YEAR_GROUP)){
   terra::writeRaster(n2k_full,
                      filename = paste0(path_temp, "natura2000_",as.character(lastyear),".tif"),
                      datatype = 'INT1U',
+                     overwrite = TRUE,
+                     gdal = c("COMPRESS=DEFLATE"),
+                     progress = TRUE
+  )
+
+  # Also for 10k
+  n2k_full <- terra::rasterize(n2k_sub, background_10km, cover = TRUE, touches = TRUE)
+  terra::writeRaster(n2k_full,
+                     filename = paste0(path_temp, "natura2000_frac_",as.character(lastyear),".tif"),
+                     datatype = 'FLT4S',
                      overwrite = TRUE,
                      gdal = c("COMPRESS=DEFLATE"),
                      progress = TRUE

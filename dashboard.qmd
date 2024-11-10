@@ -1,0 +1,299 @@
+---
+title: "Mean target achievement (MTA) indicator"
+author: ""
+logo: "img/NClogo.png"
+format:
+  dashboard:
+    theme: cosmo
+    embed-resources: true
+    expandable: true
+    scrolling: false
+    nav-buttons:
+    - icon: linkedin
+      href: https://www.linkedin.com/company/naturaconnect/
+    - icon: twitter
+      href: https://twitter.com/NaturaConnect
+    - icon: github
+      href: https://github.com/iiasa
+execute:
+  freeze: false
+resources:
+  - "export/Indicator_factsheet_representativeness_indicator.pdf"
+factsheet:
+  pdf: "export/Indicator_factsheet_representativeness_indicator.pdf"
+engine: knitr
+bibliography: references.bib
+csl: style.csl
+---
+
+```{r Package loading,echo=FALSE,warning=FALSE}
+#| include: false
+
+# Load packages
+library(ggplot2)
+library(plotly)
+library(ggsci)
+library(scales)
+library(dplyr)
+library(readr)
+
+# Path to the outputs
+path_output <- "export/"
+
+# Load overall
+overall <- read.csv(paste0(path_output, "MTA_alltargets_EU_All_All.csv"))
+overall_art12 <- read.csv(paste0(path_output, "MTA_alltargets_EU_Art12_species.csv"))
+overall_art12$category <- "Species"
+overall_art17 <- read_csv(
+  paste0(path_output, c("MTA_alltargets_EU_Art17_species.csv",
+                        "MTA_alltargets_EU_Art17_habitats.csv"))
+)
+
+p <- ggplot() + theme_void()
+
+```
+
+# EU
+
+## Row {height="30%"}
+
+::: {.valuebox icon="bar-chart-line-fill" color="primary"}
+Overall latest MTA
+
+```{r Overall stats - MTA,echo=FALSE,warning=FALSE}
+#| include: false
+val <- overall |> dplyr::filter(option=="loglinear",year=="2018-2024") |> dplyr::pull(y)
+
+```
+
+`{r} round(val,3)`
+:::
+
+::: {.valuebox icon="arrow-up-right-circle-fill" color="secondary"}
+Change since 2018
+
+```{r Overall stats - MTA diff,echo=FALSE,warning=FALSE}
+#| include: false
+val <- overall |> dplyr::filter(option=="loglinear") |> 
+  dplyr::mutate(y = c(NA,diff(y))) |> dplyr::pull(y) |> tail(1)
+
+```
+
+`{r} round(val,3)`
+:::
+
+::: {.valuebox icon="database-fill" color="info"}
+Number of species and habitats
+
+```{r Overall stats - species,echo=FALSE,warning=FALSE}
+#| include: false
+val <- read.csv(paste0(path_output,"Overall_statistics.csv")) |> 
+  dplyr::slice(1,3,5) |> dplyr::pull(nr_features) |> sum()
+```
+
+`{r} val`
+:::
+
+## Row {height="70%"}
+
+### Column {width="30%"}
+
+#### Row {.tabset}
+
+::: {.card title="Variance"}
+```{r}
+p
+```
+:::
+
+::: {.card title="Features"}
+```{r}
+p
+```
+:::
+
+```{r}
+#| output: asis
+#| fig-width: 8
+#| fig-height: 6
+for (i in 1:2) {
+  cat(sprintf("\n\n::: {.card title='Dim %s'}\n\n", i))
+  cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
+  print(p + labs(title = i))
+  cat("\n\n::::\n\n")
+  cat("\n\n:::\n\n")
+}
+```
+
+### Column {.tabset width="70%"}
+
+```{r}
+#| output: asis
+#| fig-width: 8
+#| fig-height: 3
+
+# Plot the overall trend
+g1 <- ggplot(overall, aes(x = year, y = y,
+                    group = option, color = option)) +
+  theme_bw(base_size = 14) +
+  geom_line(linewidth = 1.5, alpha = .6) +
+  ggsci::scale_color_d3() +
+  scale_y_continuous(limits = c(0,1)) +
+  guides(color = guide_legend(title = "Targets")) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "MTA")
+
+cat(sprintf("\n\n::: {.card title='%s'}\n\n", "Overall"))
+cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
+plotly::ggplotly(g1)
+cat("\n\n::::\n\n")
+cat("\n\n:::\n\n")
+
+comb <- bind_rows(overall_art12,overall_art17)
+comb$group <- factor(comb$art,
+                   levels = c("Art_All", "Art_12","Art_17"),
+                   labels = c("All", "Art 12", "Art 17"))
+
+g2 <- ggplot(comb,
+             aes(x = year, y = y,
+                    group = option, color = option)) +
+  theme_bw(base_size = 14) +
+  geom_line(linewidth = 1.5, alpha = .6) +
+  ggsci::scale_color_d3() +
+  scale_y_continuous(limits = c(0,1)) +
+  guides(color = guide_legend(title = "Targets")) +
+  theme(legend.position = "bottom") +
+  facet_wrap(category~group) +
+  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "MTA")
+  
+cat(sprintf("\n\n::: {.card title='%s'}\n\n", "By Article"))
+cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
+plotly::ggplotly(g2)
+cat("\n\n::::\n\n")
+cat("\n\n:::\n\n")
+```
+
+<!-- # National -->
+
+<!-- ## Row {height="30%"} -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ## Row {height="70%"} -->
+
+<!-- ### Column {width="30%"} -->
+
+<!-- #### Row {.tabset} -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- #### Row -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ### Column {.tabset width="70%"} -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+<!-- ::: card -->
+
+<!-- ![](https://placehold.co/300x300){height="100%"} -->
+
+<!-- ::: -->
+
+# Indicator factsheet {#sec-indicator-factsheet}
+
+```{css echo=FALSE}
+.embed-container {
+    position: relative;
+    padding-bottom: 129%;
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+}
+.embed-container iframe,
+.embed-container object,
+.embed-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+```
+
+<p class="text-center">
+
+<a class="btn btn-primary btn-lg cv-download" href="`r rmarkdown::metadata$factsheet$pdf`" target="_blank"> <i class="fa-solid fa-file-arrow-down"></i> Download indicator factsheet </a>
+
+</p>
+
+::: embed-container
+<iframe src="`r rmarkdown::metadata$factsheet$pdf`" style="border: 0.5px">
+
+</iframe>
+:::
+
+# Methodology {#sec-methodology orientation="rows" scrolling="true"}
+
+## Methods
+
+::: {.card title="Methodology"}
+The calculation of the MTA indicator (defined by @jantke2019 ) used EEA species and habitat reporting data and Natura 2000 information. For each 10 x 10 km grid id in the EEA Reference grid, we estimated the cumulative coverage of Natura 2000 sites per time frame, which we identified from the date SPAs, SCIs or SACs were designated or first added to the database. We then summarized per species or habitat the total distribution as well as the coverage of Natura 2000 sites within their distribution. See also the @sec-indicator-factsheet section for a more detailed methodology breakdown.\
+The current calculation of the MTA is feasible every 6 years and can also be further refined to account for land-cover and land-use change, for example using data from the Corine Accounting layer.
+:::
+
+## Data sources
+
+::: {.card title="Data"}
+As data sources we relied for this demonstration on the officially used Article 12 ('Birds directive') and Article 17 ('Habitats directive') reporting data. Sensitive species were also included in those calculations.
+
+As conservation areas we relied on the [Natura2000 geopackage](https://www.eea.europa.eu/data-and-maps/data/natura-14/natura-2000-spatial-data "EEA Natura 2000 layer") (last updated in April 2024).
+
+Targets were calculated either as flat (30% of distribution), log-linear (following [@rodrigues2004]) or targets minimizing species-extinction risk (following [@Jung2021]). Different target formulations are feasible and should ideally be based on species-specific process that considers ecological features and conservation needs.
+:::
+
+## References {#sec-references}
+
+::: {#refs title="References"}
+:::
+
+# Data
+
+...Link and summary to be written/inserted here...
