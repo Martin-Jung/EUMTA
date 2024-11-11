@@ -60,6 +60,29 @@ df <- data |>
 df$category[is.na(df$category)] <- "Species"
 write.csv(df,"export/Overall_statistics.csv",row.names = FALSE)
 
+# Average conserved area and proportion per EU MS
+df <- data |>
+  dplyr::pull(ifname) |> map_dfr(readRDS)
+df$category[is.na(df$category)] <- "Species"
+
+df <- df |>
+  # Recalculate to km2
+  dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
+                totalarea_km2 = units::set_units(totalarea_m2, km^2)) |>
+  dplyr::group_by(country, category) |>
+  dplyr::summarise(nr_features = dplyr::n_distinct(code),
+                   mean_conservedarea = mean(conservedarea_km2),
+                   prop = (sum(conservedarea_km2) / sum(totalarea_km2)) ) |>
+  dplyr::filter(country != "All")
+
+df <- df |> dplyr::group_by(country,category) |> dplyr::summarise(
+  nr_features = sum(nr_features),
+  mean_conservedarea = mean(mean_conservedarea),
+  prop = mean(prop)
+)
+write.csv(df,"export/Overall_statistics_MS.csv",row.names = FALSE)
+
+
 #### Overall across EU - Calculate MTA based on N2k areas ####
 # We calculate the MTA across all areas and per time-period
 # And for each dataset.
@@ -133,6 +156,10 @@ tr_loglinear <- calc_targets(data = overall,
 tr_flat <- tr_flat |> units::drop_units()
 tr_exrisk <- tr_exrisk |> units::drop_units()
 tr_loglinear <- tr_loglinear |> units::drop_units()
+
+# Make a copy but anonymizing the codes
+write.csv(tr_loglinear |> dplyr::select(option, target_relative),
+          "export/Overall_targetsloglinear.csv",row.names = FALSE)
 
 # --- #
 # Calculate the average MTA across time periods for the various targets

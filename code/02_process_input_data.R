@@ -130,4 +130,25 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
   rm(n2k_full);gc()
 }
 
+# ------------------- #
+#### Calculate area expansion by time ####
+# Here we simply calculate the total area by timeslot
+ll <- list.files("temporary_data/",full.names = TRUE)
+ll <- ll[has_extension(ll,"tif")]
+if(aggregate_for_speed) ll <- ll[grep("frac", ll)] else ll <- ll[grep("frac",ll,invert = TRUE)]
+ll <- ll[grep("full", ll, invert = TRUE)]
+consar <- terra::rast(ll)
+names(consar) <- basename(tools::file_path_sans_ext(ll))
+terra::time(consar) <- str_split(basename(tools::file_path_sans_ext(ll)),"_",simplify = TRUE)[,ifelse(aggregate_for_speed,3,2)] |> as.numeric()
 
+# Aggregate by
+n2k <- terra::global(consar * terra::cellSize(consar[[1]], unit = "km"),
+                     'sum', na.rm = TRUE) |> tibble::rownames_to_column("year") |>
+  dplyr::mutate(year = stringr::str_split(year, "_",simplify = TRUE)[,3])
+n2k$year <- factor(n2k$year,
+                  levels = c(2000, 2006, 2012, 2018, 2024),
+                  labels = c("<2000", "2000-2006", "2006-2012","2012-2018", "2018-2024"))
+n2k$sum <- units::set_units(n2k$sum, "km2")
+
+# Save output
+write.csv(n2k, "export/Overall_n2k.csv",row.names = FALSE)
