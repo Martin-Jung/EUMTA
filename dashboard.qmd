@@ -4,7 +4,7 @@ author: ""
 logo: "img/NClogo.png"
 format:
   dashboard:
-    theme: cosmo
+    theme: flatly
     embed-resources: true
     expandable: true
     scrolling: false
@@ -14,7 +14,7 @@ format:
     - icon: twitter
       href: https://twitter.com/NaturaConnect
     - icon: github
-      href: https://github.com/iiasa
+      href: https://github.com/Martin-Jung/EUMTA
 
 execute:
   freeze: false
@@ -61,7 +61,8 @@ p <- ggplot() + theme_void()
 ## Row {height="30%"}
 
 ::: {.valuebox icon="bar-chart-line-fill" color="primary"}
-Overall latest MTA
+Overall latest MTA \
+(last updated Nov 2024)
 
 ```{r Overall stats - MTA,echo=FALSE,warning=FALSE}
 #| include: false
@@ -184,7 +185,7 @@ g3
 # Load targets and make a barplot
 n2k <- read.csv("export/Overall_n2k.csv") |> mutate(group = "Overall")
 
-g4 <- ggplot(n2k, aes(x = year, y = sum, group = group)) +
+g4 <- ggplot(n2k, aes(x = year, y = area_km2, group = group)) +
   theme_bw(base_size = 14) +
   geom_line(linewidth = 2, alpha = .6) +
   geom_hline(yintercept = .5,linetype = "dotted") + 
@@ -282,8 +283,9 @@ cat("\n\n:::\n\n")
 ## Methods
 
 ::: {.card title="Methodology"}
-Expansions of conservation areas such as the Natura 2000 network should be done in a way that improves not only area coverage but also representation [@Visconti2019]. The MTA indicator is one way of assessing this using information of species distributions covered by conservation areas.\
-The calculation of the MTA indicator (defined by @jantke2019 ) used EEA species and habitat reporting data and Natura 2000 information. For each 10 x 10 km grid id in the EEA Reference grid, we estimated the cumulative coverage of Natura 2000 sites per time frame, which we identified from the date SPAs, SCIs or SACs were designated or first added to the database. We then summarized per species or habitat the total distribution as well as the coverage of Natura 2000 sites within their distribution. See also the @sec-indicator-factsheet section for a more detailed methodology breakdown.\
+Expansions of conservation areas such as the Natura 2000 network should be done in a way that improves not only area coverage but also representation [@Visconti2019; @adams2021]. The MTA indicator is one way of assessing this using information of species distributions covered by conservation areas.\
+The calculation of the MTA indicator (defined by @jantke2019 ) here uses EEA species and habitat reporting data and Natura 2000 information. For each 10 x 10 km grid id in the EEA Reference grid, we estimated the cumulative coverage of Natura 2000 sites per time frame, which we identified from the date SPAs, SCIs or SACs were designated or first added to the database. We then summarized per species or habitat the total distribution as well as the coverage of Natura 2000 sites within their distribution. See also the @sec-indicator-factsheet section for a more detailed methodology breakdown.
+
 The current calculation of the MTA is feasible every 6 years and can also be further refined to account for land-cover and land-use change, for example using data from the Corine Accounting layer. Furthermore, for comparability data on EEA reporting is used, although more higher resolved species distribution data (such as those produced by the NaturaConnect project) are slowly becoming available.
 :::
 

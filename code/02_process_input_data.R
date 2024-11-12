@@ -25,6 +25,10 @@ assertthat::assert_that(dir.exists(path_corine))
 path_n2k <- paste0(path_temp, "/N2k.gpkg")
 assertthat::assert_that(file.exists(path_n2k))
 
+# Path NUTS
+path_nuts <- paste0(path_temp, "NUTS_RG_20M_2024_4326.shp/NUTS_RG_20M_2024_4326.shp")
+assertthat::assert_that(file.exists(path_nuts))
+
 # ----------------- #
 #### Create background and rasterize conservation areas ####
 # Here we create a binary background that contains the conservation areas
@@ -135,20 +139,31 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
 # Here we simply calculate the total area by timeslot
 ll <- list.files("temporary_data/",full.names = TRUE)
 ll <- ll[has_extension(ll,"tif")]
-if(aggregate_for_speed) ll <- ll[grep("frac", ll)] else ll <- ll[grep("frac",ll,invert = TRUE)]
+ll <- ll[grep("frac", ll)] #else ll <- ll[grep("frac",ll,invert = TRUE)]
 ll <- ll[grep("full", ll, invert = TRUE)]
 consar <- terra::rast(ll)
 names(consar) <- basename(tools::file_path_sans_ext(ll))
-terra::time(consar) <- str_split(basename(tools::file_path_sans_ext(ll)),"_",simplify = TRUE)[,ifelse(aggregate_for_speed,3,2)] |> as.numeric()
+terra::time(consar) <- str_split(basename(tools::file_path_sans_ext(ll)),"_",simplify = TRUE)[,3] |> as.numeric()
 
-# Aggregate by
+# Also load the NUTS file
+nuts <- sf::st_read(path_nuts, quiet = TRUE) |> dplyr::filter(LEVL_CODE == 0) |>
+  # Exclude non-covered countries
+  dplyr::filter(!(CNTR_CODE %in% c("TR","NO","CH", "IS", "UA","XK"))) |>
+  # Add area
+  dplyr::mutate(area_km2 = units::set_units(sf::st_area(geometry), "km2"))
+#plot(nuts['NUTS_ID'])
+
+# Aggregate overall
 n2k <- terra::global(consar * terra::cellSize(consar[[1]], unit = "km"),
                      'sum', na.rm = TRUE) |> tibble::rownames_to_column("year") |>
-  dplyr::mutate(year = stringr::str_split(year, "_",simplify = TRUE)[,3])
+  dplyr::rename(area_km2 = sum) |>
+  dplyr::mutate(year = stringr::str_split(year, "_",simplify = TRUE)[,3],
+                area_km2 = units::set_units(area_km2,"km2"))
 n2k$year <- factor(n2k$year,
                   levels = c(2000, 2006, 2012, 2018, 2024),
                   labels = c("<2000", "2000-2006", "2006-2012","2012-2018", "2018-2024"))
-n2k$sum <- units::set_units(n2k$sum, "km2")
+# Finally add overall proportion
+n2k$fullprop <- n2k$area_km2 / sum(nuts$area_km2)
 
 # Save output
 write.csv(n2k, "export/Overall_n2k.csv",row.names = FALSE)

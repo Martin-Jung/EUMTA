@@ -8,6 +8,8 @@
 
 This repository contains the code and exported indicators for a species-based Mean target achievement (MTA) indicator. Visualized indicators and factsheets can be found on the online dashboard.
 
+![](img/Area_with_MTA.png)
+
 *Please note that the code is not reproducible fully given the nature of Art 12 and Art 17 reporting data, which are only publicly available in a form that excludes sensitive species.*
 
 ## Acknowledgements

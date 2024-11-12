@@ -91,21 +91,37 @@ calc_targets <- function(data = NULL,
 #' for a given feature.
 #' @param proportion A [`numeric`] value between 0 and 1 indicating the proportion
 #' of conserved area.
+#' @param target_absolute A [`numeric`] alternative value describing an absolute target (Default: \code{NULL}).
+#' @param conserved_absolute A [`numeric`] alternative value with the conserved amount (Default: \code{NULL}).
 #' @returns A [`numeric`] value.
 #' @keywords indicator
-mta <- function(target_relative, proportion){
+mta <- function(target_relative = NULL, proportion = NULL,
+                target_absolute = NULL, conserved_absolute = NULL){
   assertthat::assert_that(
-    is.numeric(target_relative),
-    all( dplyr::between(target_relative, 0, 1)),
+    is.null(target_relative) || is.numeric(target_relative),
     # For proportion
-    is.numeric(proportion),
-    all( dplyr::between(proportion, 0, 1))
-
+    is.null(proportion) || is.numeric(proportion)
   )
 
-  return(
-    mean(
-      1 - (pmin(1, pmax(0, ( target_relative - proportion ) )) / target_relative )
+  if(!is.null(target_absolute)){
+    if(inherits(target_absolute, "unit")) target_absolute <- units::drop_units(target_absolute)
+    if(inherits(conserved_absolute, "unit")) conserved_absolute <- units::drop_units(conserved_absolute)
+
+    return(
+      mean(
+        pmin(1, conserved_absolute / target_absolute)
+      )
     )
-  )
+
+  } else {
+    assertthat::assert_that(
+      all( dplyr::between(target_relative, 0, 1)),
+      all( dplyr::between(proportion, 0, 1))
+    )
+    return(
+      mean(
+        1- (pmin(1, pmax(0, ( target_relative - proportion ) )) / target_relative )
+      )
+    )
+  }
 }

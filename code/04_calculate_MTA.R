@@ -166,7 +166,9 @@ write.csv(tr_loglinear |> dplyr::select(option, target_relative),
 tr1 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_flat, by = "code") |>
   dplyr::group_by(category, option, year, code) |>
-  dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -177,7 +179,9 @@ tr1 <- peryear |> units::drop_units() |>
 tr2 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_loglinear) |>
   dplyr::group_by(category,option, year, code) |>
-  dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -188,7 +192,9 @@ tr2 <- peryear |> units::drop_units() |>
 tr3 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_exrisk) |>
   dplyr::group_by(category,option, year, code) |>
-  dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -220,6 +226,7 @@ country <- df |> dplyr::group_by(category,country, code) |>
   dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                  totalarea_km2 = sum(totalarea_km2)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
+
 
 # ----------- #
 # Overall per dataset (Art 17, species, habitat, etc...)
@@ -291,11 +298,11 @@ for(i in 1:nrow(biodiversity) ){
   tr1 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_flat, by = "code") |>
     dplyr::group_by(category, option, year, code) |>
-    dplyr::reframe(
-      mta = mean(
-        1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-        )
-    ) |>
+    # dplyr::reframe(
+    #   mta = mta(target_relative,fullprop)
+    # ) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>
@@ -306,9 +313,9 @@ for(i in 1:nrow(biodiversity) ){
   tr2 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_loglinear) |>
     dplyr::group_by(category,option, year, code) |>
-    dplyr::reframe(mta = mean(
-                     1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-                   )) |>
+    # dplyr::reframe(mta = mta(target_relative,fullprop) ) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>
@@ -319,9 +326,9 @@ for(i in 1:nrow(biodiversity) ){
   tr3 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_exrisk) |>
     dplyr::group_by(category,option, year, code) |>
-    dplyr::reframe(mta = mean(
-                     1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-                   )) |>
+    # dplyr::reframe(mta = mta(target_relative,fullprop) ) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>
@@ -425,11 +432,11 @@ tr_loglinear <- tr_loglinear |> units::drop_units()
 tr1 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_flat, by = "code") |>
   dplyr::group_by(category, option, year, code) |>
-  dplyr::reframe(
-    mta = mean(
-      1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-    )
-  ) |>
+  # dplyr::reframe(
+  #   mta = mta(target_relative,fullprop)
+  # ) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -440,9 +447,9 @@ tr1 <- peryear |> units::drop_units() |>
 tr2 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_loglinear) |>
   dplyr::group_by(category,option, year, code) |>
-  dplyr::reframe(mta = mean(
-    1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-  )) |>
+  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -453,9 +460,9 @@ tr2 <- peryear |> units::drop_units() |>
 tr3 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_exrisk) |>
   dplyr::group_by(category,option, year, code) |>
-  dplyr::reframe(mta = mean(
-    1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-  )) |>
+  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                           conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
   dplyr::group_by(option,category,year) |>
@@ -544,11 +551,11 @@ for(i in 1:nrow(biodiversity) ){
   tr1 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_flat, by = "code") |>
     dplyr::group_by(category, option, year, code) |>
-    dplyr::reframe(
-      mta = mean(
-        1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-      )
-    ) |>
+    # dplyr::reframe(
+    #   mta = mta(target_relative,fullprop)
+    # ) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>
@@ -559,9 +566,9 @@ for(i in 1:nrow(biodiversity) ){
   tr2 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_loglinear) |>
     dplyr::group_by(category,option, year, code) |>
-    dplyr::reframe(mta = mean(
-      1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-    )) |>
+    # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>
@@ -572,9 +579,9 @@ for(i in 1:nrow(biodiversity) ){
   tr3 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_exrisk) |>
     dplyr::group_by(category,option, year, code) |>
-    dplyr::reframe(mta = mean(
-      1 - (pmin(1, pmax(0, ( target_relative - fullprop ) )) / target_relative )
-    )) |>
+    # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+    dplyr::reframe(mta = mta(target_absolute = target_absolute,
+                             conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
     dplyr::group_by(option,category,year) |>

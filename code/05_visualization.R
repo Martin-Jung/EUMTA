@@ -56,3 +56,31 @@ g2 <- ggplot(ss, aes(x = year, y = y,
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
   labs(x = "", y = "Mean target achievement (MTA)")
 g2
+
+# ------------------ #
+#### Area increase per year against MTA ####
+
+# Load areas
+sc_area <- read.csv("export/Overall_n2k.csv")
+
+# Format MTA for overall
+mta <- ss |> dplyr::filter(option == "loglinear",
+                           category == "All",
+                           scale == "EU") |>
+  dplyr::select(year,y)
+
+# Combine both
+comb <- dplyr::full_join(sc_area, mta)
+
+g <- ggplot(comb, aes(x = fullprop, y = y, color = year ) ) +
+  theme_light(base_size = 16) +
+  coord_flip() +
+  geom_line(aes(x = fullprop, y = y),inherit.aes = FALSE) +
+    geom_point(size = 2) +
+  scale_x_continuous(limits = c(0,1)) +
+  scale_y_continuous(limits = c(0,1)) +
+  guides(color = guide_legend(title = "")) +
+  geom_abline(slope = 1,intercept = 0, linetype = "dashed", colour = "black") +
+  labs(x = "EU land-area conserved (%)", y = "Mean target achievement (MTA)")
+g
+ggsave(g, filename = "img/Area_with_MTA.png",width = 8, height = 8)
