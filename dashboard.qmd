@@ -19,9 +19,9 @@ format:
 execute:
   freeze: false
 resources:
-  - "export/Indicator_factsheet_representativeness_indicator.pdf"
+  - "export/Indicator_factsheet_representativeness_indicator_updated.pdf"
 factsheet:
-  pdf: "export/Indicator_factsheet_representativeness_indicator.pdf"
+  pdf: "export/Indicator_factsheet_representativeness_indicator_updated.pdf"
 engine: knitr
 bibliography: references.bib
 csl: style.csl
@@ -38,19 +38,28 @@ library(scales)
 library(dplyr)
 library(readr)
 
+# Version - Update after each major correction.
+version <- "01"
+
 # Path to the outputs
 path_output <- "export/"
 
 # Load overall
-overall <- read.csv(paste0(path_output, "MTA_alltargets_EU_All_All.csv")) |> 
+overall <- read.csv(paste0(path_output, "MTA_alltargets_EU_All_",version,".csv")) |> 
   dplyr::filter(option == "loglinear")
-overall_art12 <- read.csv(paste0(path_output, "MTA_alltargets_EU_Art12_species.csv")) |> dplyr::filter(option == "loglinear") 
+overall$ctype <- factor(overall$ctype, levels = c("natura2000", "cdda", "combined"))
+
+overall_art12 <- read.csv(paste0(path_output, "MTA_alltargets_EU_Art12_species_",version,".csv")) |> dplyr::filter(option == "loglinear") 
 overall_art12$category <- "Species"
 overall_art17 <- read_csv(
-  paste0(path_output, c("MTA_alltargets_EU_Art17_species.csv",
-                        "MTA_alltargets_EU_Art17_habitats.csv"))
+  paste0(path_output, 
+         c(paste0("MTA_alltargets_EU_Art17_species_",version,".csv"),
+           paste0("MTA_alltargets_EU_Art17_habitats_",version,".csv"))
+         )
 ) |> dplyr::filter(option == "loglinear") 
 
+# Targets
+targets <- read.csv(paste0(path_output,"Overall_targetsloglinear_",version,".csv"))
 
 p <- ggplot() + theme_void()
 
@@ -61,12 +70,12 @@ p <- ggplot() + theme_void()
 ## Row {height="30%"}
 
 ::: {.valuebox icon="bar-chart-line-fill" color="primary"}
-Overall latest MTA \
+Overall latest MTA\
 (last updated Nov 2024)
 
 ```{r Overall stats - MTA,echo=FALSE,warning=FALSE}
 #| include: false
-val <- overall |> dplyr::filter(option=="loglinear",year=="2018-2024") |> dplyr::pull(y)
+val <- overall |> dplyr::filter(ctype =="combined",option=="loglinear",year=="2018-2024") |> dplyr::pull(y)
 
 ```
 
@@ -78,7 +87,7 @@ Change since 2018
 
 ```{r Overall stats - MTA diff,echo=FALSE,warning=FALSE}
 #| include: false
-val <- overall |> dplyr::filter(option=="loglinear") |> 
+val <- overall |> dplyr::filter(ctype =="combined",option=="loglinear") |> 
   dplyr::mutate(y = c(NA,diff(y))) |> dplyr::pull(y) |> tail(1)
 
 ```
@@ -111,7 +120,8 @@ val <- read.csv(paste0(path_output,"Overall_statistics.csv")) |>
 #| fig-height: 6
 
 # Load 
-overall_ms <- read.csv("export/Overall_statistics_MS.csv")
+overall_ms <- read.csv("export/Overall_statistics_MS.csv") |> 
+  dplyr::filter(ctype == "combined")
 overall_ms$country <- factor(overall_ms$country,levels = rev(unique(overall_ms$country)))
 
 g1 <- ggplot2::ggplot(overall_ms, aes(x = country, y = nr_features,
@@ -119,7 +129,7 @@ g1 <- ggplot2::ggplot(overall_ms, aes(x = country, y = nr_features,
   theme_bw(base_size = 14) +
   coord_flip() +
   geom_bar(stat = "identity",position = position_dodge(.5)) +
-  ggsci::scale_color_d3() +
+  ggsci::scale_fill_aaas() +
   guides(fill = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
@@ -137,7 +147,8 @@ g1
 #| fig-height: 6
 
 # Load 
-overall_ms <- read.csv("export/Overall_statistics_MS.csv")
+overall_ms <- read.csv("export/Overall_statistics_MS.csv") |> 
+  dplyr::filter(ctype == "combined")
 overall_ms$country <- factor(overall_ms$country,levels = rev(unique(overall_ms$country)))
 
 g2 <- ggplot2::ggplot(overall_ms, aes(x = country, y = prop,
@@ -145,7 +156,7 @@ g2 <- ggplot2::ggplot(overall_ms, aes(x = country, y = prop,
   theme_bw(base_size = 14) +
   coord_flip() +
   geom_bar(stat = "identity",position = position_dodge(.5)) +
-  ggsci::scale_color_d3() +
+  ggsci::scale_fill_d3() +
   guides(fill = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
@@ -163,35 +174,37 @@ g2
 #| fig-height: 6
 
 # Load targets and make a barplot
-targets <- read.csv("export/Overall_targetsloglinear.csv")
-
 g3 <- ggplot2::ggplot(targets, aes(x = target_relative) ) +
   theme_bw(base_size = 16) +
   geom_histogram() +
   scale_y_continuous(expand = c(0,0)) +
   labs(x = "Average proportion set as target", y = "Number of features")
-
 g3
 
 ```
 :::
 
-::: {.card title="Natura 2000"}
+::: {.card title="Conservation areas"}
 ```{r}
 #| output: asis
 #| fig-width: 8
 #| fig-height: 6
 
 # Load targets and make a barplot
-n2k <- read.csv("export/Overall_n2k.csv") |> mutate(group = "Overall")
+n2k <- read.csv("export/Overall_areastatistics.csv") |> mutate(group = "Overall")
+n2k$ctype <- factor(n2k$ctype, levels = c("natura2000", "cdda", "combined"))
 
-g4 <- ggplot(n2k, aes(x = year, y = area_km2, group = group)) +
+g4 <- ggplot(n2k, aes(x = year, y = area_km2,
+                      group = ctype, color = ctype)) +
   theme_bw(base_size = 14) +
   geom_line(linewidth = 2, alpha = .6) +
   geom_hline(yintercept = .5,linetype = "dotted") + 
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
-  labs(x = "Cumulative expansion of Natura2000", y = "Area (km²)")
+  labs(x = "Cumulative expansion of area-based conservation",
+       y = "Area (km²)")
 g4
 
 ```
@@ -205,14 +218,17 @@ g4
 #| fig-height: 3
 
 # Plot the overall trend
-g1 <- ggplot(overall, aes(x = year, y = y, group = option)) +
+g1 <- ggplot(overall |> dplyr::filter(ctype == "combined"),
+             aes(x = year, y = y, group = variable)) +
   theme_bw(base_size = 14) +
   geom_line(linewidth = 2, alpha = .6) +
   geom_hline(yintercept = .5,linetype = "dotted") + 
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(title = "")) +
   scale_y_continuous(limits = c(0,1)) +
   theme(legend.position = "bottom") +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
-  labs(x = "Coverage of Natura2000 areas", y = "MTA")
+  labs(x = "All EU conservation areas", y = "MTA")
 
 cat(sprintf("\n\n::: {.card title='%s'}\n\n", "Overall"))
 cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
@@ -220,29 +236,55 @@ plotly::ggplotly(g1)
 cat("\n\n::::\n\n")
 cat("\n\n:::\n\n")
 
+# Per conservation area type
+overall$ctype <- factor(overall$ctype, levels = c("natura2000", "cdda", "combined"))
+
+g2 <- ggplot(overall,
+             aes(x = year, y = y,
+                 group = ctype, color = ctype)) +
+  theme_bw(base_size = 14) +
+  geom_line(linewidth = 2, alpha = .6) +
+  geom_hline(yintercept = .5,linetype = "dotted") + 
+  ggsci::scale_color_d3() +
+  guides(color = guide_legend(title = "")) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "MTA")
+
+cat(sprintf("\n\n::: {.card title='%s'}\n\n", "Area type"))
+cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
+plotly::ggplotly(g2)
+cat("\n\n::::\n\n")
+cat("\n\n:::\n\n")
+
+# Per Mandate
 comb <- bind_rows(overall_art12,overall_art17)
 comb$group <- factor(comb$art,
                    levels = c("Art_All", "Art_12","Art_17"),
                    labels = c("All", "Art 12", "Art 17"))
 
-g2 <- ggplot(comb,
+g3 <- ggplot(comb |> dplyr::filter(ctype == "combined"),
              aes(x = year, y = y,
                     group = group, color = group)) +
   theme_bw(base_size = 14) +
+  geom_hline(yintercept = 0.5) +
   geom_line(linewidth = 1.5, alpha = .6) +
   ggsci::scale_color_d3() +
   scale_y_continuous(limits = c(0,1)) +
   guides(color = guide_legend(title = "Mandate")) +
   theme(legend.position = "bottom") +
-  facet_wrap(~category) +
+  facet_grid(~category) +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
   labs(x = "", y = "MTA")
   
 cat(sprintf("\n\n::: {.card title='%s'}\n\n", "By Article"))
 cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
-plotly::ggplotly(g2)
+plotly::ggplotly(g3)
 cat("\n\n::::\n\n")
 cat("\n\n:::\n\n")
+
+
 ```
 
 # Indicator factsheet {#sec-indicator-factsheet}
@@ -283,7 +325,8 @@ cat("\n\n:::\n\n")
 ## Methods
 
 ::: {.card title="Methodology"}
-Expansions of conservation areas such as the Natura 2000 network should be done in a way that improves not only area coverage but also representation [@Visconti2019; @adams2021]. The MTA indicator is one way of assessing this using information of species distributions covered by conservation areas.\
+Expansions of conservation areas such as the Natura 2000 network should be done in a way that improves not only area coverage but also representation [@Visconti2019; @adams2021]. The MTA indicator is one way of assessing the benefits of expansions using information of species distributions covered by conservation areas.\
+It can be interpreted as the average number of species or habitats that are adequately (indicated through a target) conserved by conservation areas (Natura 2000 and/or CDDA sites) within the European union.\
 The calculation of the MTA indicator (defined by @jantke2019 ) here uses EEA species and habitat reporting data and Natura 2000 information. For each 10 x 10 km grid id in the EEA Reference grid, we estimated the cumulative coverage of Natura 2000 sites per time frame, which we identified from the date SPAs, SCIs or SACs were designated or first added to the database. We then summarized per species or habitat the total distribution as well as the coverage of Natura 2000 sites within their distribution. See also the @sec-indicator-factsheet section for a more detailed methodology breakdown.
 
 The current calculation of the MTA is feasible every 6 years and can also be further refined to account for land-cover and land-use change, for example using data from the Corine Accounting layer. Furthermore, for comparability data on EEA reporting is used, although more higher resolved species distribution data (such as those produced by the NaturaConnect project) are slowly becoming available.
@@ -292,11 +335,19 @@ The current calculation of the MTA is feasible every 6 years and can also be fur
 ## Data sources
 
 ::: {.card title="Data"}
-As data sources we relied for this demonstration on the officially used Article 12 ('Birds directive') and Article 17 ('Habitats directive') reporting data. Sensitive species were also included in those calculations.
+As data sources we relied for this demonstration on the officially used Article 12 ('Birds directive') and Article 17 ('Habitats directive') reporting data. Sensitive species were also included in those calculations and it is because of this reason that the input data can not be shared publicly.
 
 As conservation areas we relied on the [Natura2000 geopackage](https://www.eea.europa.eu/data-and-maps/data/natura-14/natura-2000-spatial-data "EEA Natura 2000 layer") (last updated in April 2024).
 
 Targets were calculated as log-linear targets (following [@rodrigues2004]) with a lower bound to 20% and upper bound to 90%. Different target formulations are feasible, for example those minimizing species-extinction risk (following [@Jung2021]) and should ideally be based on a scientifically sound process at EU Member state level that takes into account ecological features and conservation needs.
+:::
+
+## Note {#sec-note}
+
+::: {.card title="Note"}
+It should be highlighted that the MTA is calculate based on the official Reporting by EU Memberstates as part of Article 12 and Article 17. Thus the targets, and conserved distribution and total distribution reflect the distribution of a species or habitat occurring in the European union only (despite some species likely also occurring elsewhere).
+
+A more comprehensive version of the MTA will be calculated as part of the [NaturaConnect](https://naturaconnect.eu/) project, which however does not use official European data, but specifically created data and targets for this purpose.
 :::
 
 ## References {#sec-references}
@@ -304,9 +355,21 @@ Targets were calculated as log-linear targets (following [@rodrigues2004]) with 
 ::: {#refs title="References"}
 :::
 
-# Data
+# Data {#sec-data}
 
-...Link and summary to be written/inserted here...
+::: {.card title="Data availability" width="30%" height="50%"}
+The calculated MTA indicator values have been made openly available on a Zenodo repository in various combinations. The calculated values are provides as is, and the author and NaturaConnect project take no liability for errors or misinterpretations.
+
+<p class="text-center">
+
+<a class="btn btn-primary btn-lg cv-download" href="doi.org/10.5281/zenodo.14196503" target="_blank"> <i class="fa-solid fa-file-arrow-down"></i> Download EU MTA indicator values </a>
+
+</p>
+
+[Current version:]{.underline} 01
+
+**Please check the repository regularly for updated versions.**
+:::
 
 # About
 
@@ -319,5 +382,5 @@ To find out more about our project, please visit our [homepage](https://naturaco
 
 ------------------------------------------------------------------------
 
-The MTA indicator calculation and the creation of this dashboard has been led by **Martin Jung** (IIASA) as part of the WP7 of the NaturaConnect project. The information here is provided free of charge and the project takes no responsibility for errors or misuse.
+> The MTA indicator calculation and the creation of this dashboard has been led by **Martin Jung** (IIASA) as part of the WP7 of the NaturaConnect project. The information here is provided free of charge and the project takes no responsibility for errors or misuse.
 :::

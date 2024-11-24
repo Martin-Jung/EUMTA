@@ -16,6 +16,9 @@ library(purrr)
 library(tidyr)
 library(lubridate)
 
+# Version - Update after each major correction.
+version <- "01"
+
 # Load custom functions
 source("code/00_functions.R")
 
@@ -32,16 +35,18 @@ assertthat::assert_that(
 # Create dataset with relevant files.
 # Edit as needed
 data <- data.frame(ifname = c("temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_EU.rds",
-                            "temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_MS.rds",
+                            # "temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_MS.rds",
                             "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_EU.rds",
-                            "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_MS.rds",
+                            # "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_MS.rds",
                             "temporary_data/Speciesareas__EU_Art12_birds_distribution_2013_2018_with_sensitive_species.rds"),
-                 scale = c("EU", "MS", "EU", "MS", "EU"),
-                 art = c("17","17","17","17","12"), variable = c("habitats", "habitats", "species", "species","species")
+                 scale = c("EU", "EU",  "EU"),
+                 art = c("17","17","12"),
+                 variable = c("habitats", "species", "species")
                  )
 assertthat::assert_that(
   nrow(data)>0, all(file.exists(data$ifname)),
-  "species" %in% data$variable
+  "species" %in% data$variable,
+  is.character(version)
 )
 
 #### Overall summary statistics ####
@@ -51,9 +56,7 @@ assertthat::assert_that(
 # Number of unique species per group and dataset
 df <- data |>
   dplyr::pull(ifname) |> map_dfr(readRDS) |>
-  # Recalculate to km2
-  dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                totalarea_km2 = units::set_units(totalarea_m2, km^2)) |>
+  dplyr::filter(ctype == "combined") |>
   dplyr::group_by(name, category) |>
   dplyr::summarise(nr_features = dplyr::n_distinct(code),
                    mean_conservedarea = mean(conservedarea_km2))
@@ -66,24 +69,20 @@ df <- data |>
 df$category[is.na(df$category)] <- "Species"
 
 df <- df |>
-  # Recalculate to km2
-  dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                totalarea_km2 = units::set_units(totalarea_m2, km^2)) |>
-  dplyr::group_by(country, category) |>
+  dplyr::group_by(country, ctype, category) |>
   dplyr::summarise(nr_features = dplyr::n_distinct(code),
                    mean_conservedarea = mean(conservedarea_km2),
                    prop = (sum(conservedarea_km2) / sum(totalarea_km2)) ) |>
   dplyr::filter(country != "All")
 
-df <- df |> dplyr::group_by(country,category) |> dplyr::summarise(
+df <- df |> dplyr::group_by(country, ctype, category) |> dplyr::summarise(
   nr_features = sum(nr_features),
   mean_conservedarea = mean(mean_conservedarea),
   prop = mean(prop)
 )
 write.csv(df,"export/Overall_statistics_MS.csv",row.names = FALSE)
 
-
-#### Overall across EU - Calculate MTA based on N2k areas ####
+#### Overall across EU - Calculate MTA for conservation areas ####
 # We calculate the MTA across all areas and per time-period
 # And for each dataset.
 
@@ -94,10 +93,7 @@ scale <- "EU"
 ## -- First calculate overall with all datasets combined  -- ##
 # Load all files of that scale
 df <- biodiversity |>
-  dplyr::pull(ifname) |> map_dfr(readRDS) |>
-  # Recalculate to km2
-  dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                totalarea_km2 = units::set_units(totalarea_m2, km^2))
+  dplyr::pull(ifname) |> map_dfr(readRDS)
 
 # Check for duplicates and if found add category first
 if(anyDuplicated(df$code)>0){
@@ -111,26 +107,33 @@ if(anyDuplicated(df$code)>0){
 # Set category to all
 df$category <- "All"
 
+# Reset for Birds directive the country as we are interested in overall patterns
+df$country[df$name=="EU_Art12_birds_distribution_2013_2018_with_sensitive_species"] <- "All"
+
 # Recategorize groups
 df$year <- factor(df$year,
                   levels = c(2000, 2006, 2012, 2018, 2024),
                   labels = c("<2000", "2000-2006", "2006-2012","2012-2018", "2018-2024"))
 
-## Calculate the amount and proportion in N2k sites
+# ---------------- #
+## Calculate the amount and proportion in conservation areas
 # First overall
-overall <- df |> dplyr::group_by(category,code) |>
-  dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
-                 totalarea_km2 = sum(totalarea_km2)) |>
+overall <- df |>
+  dplyr::filter(category == "All", ctype == "combined",
+                country == "All", year == "2018-2024") |>
+  dplyr::group_by(ctype,code) |>
+  dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2,na.rm = TRUE),
+                 totalarea_km2 = sum(totalarea_km2,na.rm = TRUE)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-assertthat::assert_that(all( between(overall$fullprop, 0,1) ),
-                        !any(duplicated(overall$code)))
+assertthat::assert_that(all( between(overall$fullprop, 0,1) ) )
 
 # Per year
-peryear <- df |> dplyr::group_by(category,year, code) |>
+peryear <- df |> dplyr::filter(country == "All") |>
+  dplyr::group_by(category, ctype, year, code) |>
   dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                  totalarea_km2 = sum(totalarea_km2)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-assertthat::assert_that(all( between(overall$fullprop, 0,1) ))
+assertthat::assert_that(all( between(peryear$fullprop, 0,1) ))
 
 # Calculate targets based on the overall range
 tr_flat <- calc_targets(current_range = overall$total_conservedarea_km2,
@@ -145,7 +148,7 @@ tr_exrisk <- calc_targets(data = overall,
                           option = "extinctrisk") |>
   dplyr::mutate(code = overall$code)
 
-# Calculate rodrigues et al. targets
+# Calculate log-linear targets
 tr_loglinear <- calc_targets(data = overall,
                              current_range = overall$total_conservedarea_km2,
                              potential_range = overall$totalarea_km2,
@@ -158,63 +161,71 @@ tr_exrisk <- tr_exrisk |> units::drop_units()
 tr_loglinear <- tr_loglinear |> units::drop_units()
 
 # Make a copy but anonymizing the codes
-write.csv(tr_loglinear |> dplyr::select(option, target_relative),
-          "export/Overall_targetsloglinear.csv",row.names = FALSE)
+write.csv(tr_loglinear |>
+            # dplyr::slice(which(overall$ctype=="combined")) |>
+            dplyr::select(option, target_relative),
+          paste0("export/Overall_targetsloglinear_",version,".csv"),
+                 row.names = FALSE)
 
 # --- #
 # Calculate the average MTA across time periods for the various targets
 tr1 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_flat, by = "code") |>
-  dplyr::group_by(category, option, year, code) |>
+  dplyr::group_by(category, ctype, option, year, code) |>
   # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
   dplyr::reframe(mta = mta(target_absolute = target_absolute,
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
+  dplyr::group_by(option,ctype, category,year) |>
   dplyr::summarise(y = mean( mta ),
                    sd = sd(mta)
   ) |> dplyr::ungroup()
 
 tr2 <- peryear |> units::drop_units() |>
-  dplyr::left_join(tr_loglinear) |>
-  dplyr::group_by(category,option, year, code) |>
-  # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
+  dplyr::left_join(tr_loglinear) |> dplyr::ungroup() |>
+  dplyr::group_by(category, ctype, option, year, code) |>
+  # dplyr::reframe(mta = mta(target_relative = target_relative,proportion = fullprop)) |>
   dplyr::reframe(mta = mta(target_absolute = target_absolute,
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
-  dplyr::summarise(y = mean( mta ),
+  dplyr::group_by(option,ctype, category,year) |>
+  dplyr::reframe(y = mean( mta ),
                    sd = sd(mta)
   ) |> dplyr::ungroup()
 
 tr3 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_exrisk) |>
-  dplyr::group_by(category,option, year, code) |>
+  dplyr::group_by(category,ctype, option, year, code) |>
   # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
   dplyr::reframe(mta = mta(target_absolute = target_absolute,
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
+  dplyr::group_by(option,ctype, category,year) |>
   dplyr::summarise(y = mean( mta ),
                    sd = sd(mta)
-  ) |> dplyr::ungroup()
+  ) |> dplyr::ungroup() |> as.data.frame()
 
 # Combine
-tr <- dplyr::bind_rows(tr1, tr2, tr3) |>
+tr <- dplyr::bind_rows(
+  #tr1,
+  tr2
+  #tr3
+  ) |>
   # Add variables
   dplyr::mutate(variable = "All",
                 scale = {{scale}},
                 art = "All") |>
-  dplyr::mutate(art = paste0("Art_",art))
+  dplyr::mutate(art = paste0("Art_",art)) |>
+  tidyr::drop_na()
 
 # Checks
 assertthat::assert_that(nrow(tr)>0, all(dplyr::between(tr$y,0,1)))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_All.csv")
+ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_",version,".csv")
 write.csv(tr, ofname, row.names = FALSE)
 
 # ----------- #
@@ -222,11 +233,17 @@ write.csv(tr, ofname, row.names = FALSE)
 # Here we use the targets derived from above, calculating their contribution of
 # by geographic region.
 
-country <- df |> dplyr::group_by(category,country, code) |>
-  dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
-                 totalarea_km2 = sum(totalarea_km2)) |>
-  dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-
+# assertthat::assert_that(nrow(overall)>0,
+#                         nrow(tr_loglinear)>0)
+#
+# # Summarize per country
+# country <- df |>
+#   dplyr::filter(country != "All", year == "2018-2024") |>
+#   dplyr::group_by(category,ctype, country, code) |>
+#   dplyr::reframe(country_conservedarea_km2 = sum(conservedarea_km2),
+#                  totalarea_km2 = sum(totalarea_km2)) |>
+#   dplyr::mutate(fullprop = (country_conservedarea_km2 / totalarea_km2) |> units::drop_units() ) |>
+# units::drop_units()
 
 # ----------- #
 # Overall per dataset (Art 17, species, habitat, etc...)
@@ -239,10 +256,7 @@ for(i in 1:nrow(biodiversity) ){
 
   # For all
   # Load the folder
-  df <- readRDS(ifname) |>
-    # Recalculate to km2
-    dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                  totalarea_km2 = units::set_units(totalarea_m2, km^2))
+  df <- readRDS(ifname)
 
   # Add category
   if(!utils::hasName(df, "category")) df$category <- "species"
@@ -252,17 +266,23 @@ for(i in 1:nrow(biodiversity) ){
                     levels = c(2000, 2006, 2012, 2018, 2024),
                     labels = c("<2000", "2000-2006", "2006-2012","2012-2018", "2018-2024"))
 
-  ## Calculate the amount and proportion in N2k sites
+  # Filter to all for Art 17
+  if("All" %in% unique(df$country)){
+    df <- df |> dplyr::filter(country == "All")
+  }
+
+  ## Calculate the amount and proportion in conservation areas
   # First overall
-  overall <- df |> dplyr::group_by(category,code) |>
+  overall <- df |>
+    dplyr::group_by(category,ctype, code) |>
     dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                    totalarea_km2 = sum(totalarea_km2)) |>
     dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-  assertthat::assert_that(all( between(overall$fullprop, 0,1) ),
-                          !any(duplicated(overall$code)))
+  assertthat::assert_that(all( between(overall$fullprop, 0,1) ))
 
   # Per year
-  peryear <- df |> dplyr::group_by(category,year, code) |>
+  peryear <- df |>
+    dplyr::group_by(category,ctype, year, code) |>
     dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                    totalarea_km2 = sum(totalarea_km2)) |>
     dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
@@ -297,47 +317,48 @@ for(i in 1:nrow(biodiversity) ){
   # Calculate the average MTA across time periods for the various targets
   tr1 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_flat, by = "code") |>
-    dplyr::group_by(category, option, year, code) |>
-    # dplyr::reframe(
-    #   mta = mta(target_relative,fullprop)
-    # ) |>
+    dplyr::group_by(category, ctype, option, year, code) |>
     dplyr::reframe(mta = mta(target_absolute = target_absolute,
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype, category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   tr2 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_loglinear) |>
-    dplyr::group_by(category,option, year, code) |>
+    dplyr::group_by(category,ctype,option, year, code) |>
     # dplyr::reframe(mta = mta(target_relative,fullprop) ) |>
     dplyr::reframe(mta = mta(target_absolute = target_absolute,
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype, category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   tr3 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_exrisk) |>
-    dplyr::group_by(category,option, year, code) |>
+    dplyr::group_by(category,ctype, option, year, code) |>
     # dplyr::reframe(mta = mta(target_relative,fullprop) ) |>
     dplyr::reframe(mta = mta(target_absolute = target_absolute,
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype,category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   # Combine
-  tr <- dplyr::bind_rows(tr1, tr2, tr3) |>
+  tr <- dplyr::bind_rows(
+    #tr1,
+    tr2
+    #tr3
+    ) |>
     # Add variables
     dplyr::mutate(variable = {{variable}},
                   scale = {{scale}},
@@ -345,7 +366,7 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,".csv")
+  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,"_",version,".csv")
   write.csv(tr, ofname, row.names = FALSE)
 }
 stop("DONE with all EU wide MTA computations...")
@@ -388,15 +409,14 @@ df$year <- factor(df$year,
 
 ## Calculate the amount and proportion in N2k sites
 # First overall
-overall <- df |> dplyr::group_by(category,code) |>
+overall <- df |> dplyr::group_by(category,ctype, code) |>
   dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                  totalarea_km2 = sum(totalarea_km2)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-assertthat::assert_that(all( between(overall$fullprop, 0,1) ),
-                        !any(duplicated(overall$code)))
+assertthat::assert_that(all( between(overall$fullprop, 0,1) ))
 
 # Per year
-peryear <- df |> dplyr::group_by(category,year, code) |>
+peryear <- df |> dplyr::group_by(category,ctype, year, code) |>
   dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                  totalarea_km2 = sum(totalarea_km2)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
@@ -431,7 +451,7 @@ tr_loglinear <- tr_loglinear |> units::drop_units()
 # Calculate the average MTA across time periods for the various targets
 tr1 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_flat, by = "code") |>
-  dplyr::group_by(category, option, year, code) |>
+  dplyr::group_by(category, ctype, option, year, code) |>
   # dplyr::reframe(
   #   mta = mta(target_relative,fullprop)
   # ) |>
@@ -439,39 +459,43 @@ tr1 <- peryear |> units::drop_units() |>
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
+  dplyr::group_by(option,ctype, category,year) |>
   dplyr::summarise(y = mean( mta ),
                    sd = sd(mta)
   ) |> dplyr::ungroup()
 
 tr2 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_loglinear) |>
-  dplyr::group_by(category,option, year, code) |>
+  dplyr::group_by(category,ctype, option, year, code) |>
   # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
   dplyr::reframe(mta = mta(target_absolute = target_absolute,
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
+  dplyr::group_by(option,ctype, category,year) |>
   dplyr::summarise(y = mean( mta ),
                    sd = sd(mta)
   ) |> dplyr::ungroup()
 
 tr3 <- peryear |> units::drop_units() |>
   dplyr::left_join(tr_exrisk) |>
-  dplyr::group_by(category,option, year, code) |>
+  dplyr::group_by(category,ctype, option, year, code) |>
   # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
   dplyr::reframe(mta = mta(target_absolute = target_absolute,
                            conserved_absolute = total_conservedarea_km2)) |>
   # Ungroup and then average per year
   dplyr::ungroup() |>
-  dplyr::group_by(option,category,year) |>
+  dplyr::group_by(option,ctype,category,year) |>
   dplyr::summarise(y = mean( mta ),
                    sd = sd(mta)
   ) |> dplyr::ungroup()
 
 # Combine
-tr <- dplyr::bind_rows(tr1, tr2, tr3) |>
+tr <- dplyr::bind_rows(
+  #tr1,
+  tr2
+  #, tr3
+  ) |>
   # Add variables
   dplyr::mutate(variable = "All",
                 scale = {{scale}},
@@ -479,7 +503,7 @@ tr <- dplyr::bind_rows(tr1, tr2, tr3) |>
   dplyr::mutate(art = paste0("Art_",art))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_All.csv")
+ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_",version,".csv")
 write.csv(tr, ofname, row.names = FALSE)
 
 # ----------- #
@@ -505,17 +529,16 @@ for(i in 1:nrow(biodiversity) ){
                     levels = c(2000, 2006, 2012, 2018, 2024),
                     labels = c("<2000", "2000-2006", "2006-2012","2012-2018", "2018-2024"))
 
-  ## Calculate the amount and proportion in N2k sites
+  ## Calculate the amount and proportion in conserved sites
   # First overall
-  overall <- df |> dplyr::group_by(category,code) |>
+  overall <- df |> dplyr::group_by(category,ctype,code) |>
     dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                    totalarea_km2 = sum(totalarea_km2)) |>
     dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-  assertthat::assert_that(all( between(overall$fullprop, 0,1) ),
-                          !any(duplicated(overall$code)))
+  assertthat::assert_that(all( between(overall$fullprop, 0,1) ))
 
   # Per year
-  peryear <- df |> dplyr::group_by(category,year, code) |>
+  peryear <- df |> dplyr::group_by(category,ctype,year, code) |>
     dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2),
                    totalarea_km2 = sum(totalarea_km2)) |>
     dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
@@ -550,7 +573,7 @@ for(i in 1:nrow(biodiversity) ){
   # Calculate the average MTA across time periods for the various targets
   tr1 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_flat, by = "code") |>
-    dplyr::group_by(category, option, year, code) |>
+    dplyr::group_by(category, ctype, option, year, code) |>
     # dplyr::reframe(
     #   mta = mta(target_relative,fullprop)
     # ) |>
@@ -558,39 +581,43 @@ for(i in 1:nrow(biodiversity) ){
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype,category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   tr2 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_loglinear) |>
-    dplyr::group_by(category,option, year, code) |>
+    dplyr::group_by(category,ctype,option, year, code) |>
     # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
     dplyr::reframe(mta = mta(target_absolute = target_absolute,
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype,category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   tr3 <- peryear |> units::drop_units() |>
     dplyr::left_join(tr_exrisk) |>
-    dplyr::group_by(category,option, year, code) |>
+    dplyr::group_by(category,ctype,option, year, code) |>
     # dplyr::reframe(mta = mta(target_relative,fullprop)) |>
     dplyr::reframe(mta = mta(target_absolute = target_absolute,
                              conserved_absolute = total_conservedarea_km2)) |>
     # Ungroup and then average per year
     dplyr::ungroup() |>
-    dplyr::group_by(option,category,year) |>
+    dplyr::group_by(option,ctype,category,year) |>
     dplyr::summarise(y = mean( mta ),
                      sd = sd(mta)
     ) |> dplyr::ungroup()
 
   # Combine
-  tr <- dplyr::bind_rows(tr1, tr2, tr3) |>
+  tr <- dplyr::bind_rows(
+    #tr1,
+    tr2
+    #, tr3
+    ) |>
     # Add variables
     dplyr::mutate(variable = {{variable}},
                   scale = {{scale}},
@@ -598,7 +625,7 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,".csv")
+  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,"_",version,".csv")
   write.csv(tr, ofname, row.names = FALSE)
 }
 stop("DONE with all EU MS MTA computations...")

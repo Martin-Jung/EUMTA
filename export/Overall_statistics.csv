@@ -1,6 +1,4 @@
 "name","category","nr_features","mean_conservedarea"
-"Art17_habitats_distribution_2013_2018_EU","Habitats",233,12611.4443306582
-"Art17_habitats_distribution_2013_2018_MS","Habitats",233,3238.53083134837
-"Art17_species_distribution_2013_2018_EU","Species",1308,6608.78762990973
-"Art17_species_distribution_2013_2018_MS","Species",1302,2536.62672065348
-"EU_Art12_birds_distribution_2013_2018_with_sensitive_species","Species",510,6441.6510760245
+"Art17_habitats_distribution_2013_2018_EU","Habitats",233,19924.3282198297
+"Art17_species_distribution_2013_2018_EU","Species",1308,10356.858836912
+"EU_Art12_birds_distribution_2013_2018_with_sensitive_species","Species",510,10633.7344892928

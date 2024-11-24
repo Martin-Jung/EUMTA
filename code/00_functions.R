@@ -55,12 +55,11 @@ calc_targets <- function(data = NULL,
   } else if(option == "extinctrisk"){
     # Resolution is in km!
     assertthat::assert_that(
-      is.data.frame(data),utils::hasName(data, "code"),
-      anyDuplicated(data$code) == 0
+      is.data.frame(data),utils::hasName(data, "code")
     )
     out <- data |>
       units::drop_units() |>
-      dplyr::group_by(code) |>  # Per species
+      dplyr::group_by(ctype, code) |>  # Per species
       dplyr::reframe(
         size = sum(totalarea_km2),
         target_absolute = min( c( max( c(22000), 0.8 * size  ) ), 10^6 )
