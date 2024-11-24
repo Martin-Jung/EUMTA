@@ -125,7 +125,7 @@ overall_ms <- read.csv("export/Overall_statistics_MS.csv") |>
 overall_ms$country <- factor(overall_ms$country,levels = rev(unique(overall_ms$country)))
 
 g1 <- ggplot2::ggplot(overall_ms, aes(x = country, y = nr_features,
-                                      group = category, fill = category) ) +
+                                      group = ctype, fill = ctype) ) +
   theme_bw(base_size = 14) +
   coord_flip() +
   geom_bar(stat = "identity",position = position_dodge(.5)) +
@@ -362,7 +362,7 @@ The calculated MTA indicator values have been made openly available on a Zenodo 
 
 <p class="text-center">
 
-<a class="btn btn-primary btn-lg cv-download" href="doi.org/10.5281/zenodo.14196503" target="_blank"> <i class="fa-solid fa-file-arrow-down"></i> Download EU MTA indicator values </a>
+<a class="btn btn-primary btn-lg cv-download" href="https://doi.org/10.5281/zenodo.14196503" target="_blank"> <i class="fa-solid fa-file-arrow-down"></i> Download EU MTA indicator values </a>
 
 </p>
 

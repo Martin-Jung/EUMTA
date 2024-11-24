@@ -225,7 +225,7 @@ tr <- dplyr::bind_rows(
 assertthat::assert_that(nrow(tr)>0, all(dplyr::between(tr$y,0,1)))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_",version,".csv")
+ofname <- paste0(path_output, "MTA_loglinear_",scale,"_All_All_",version,".csv")
 write.csv(tr, ofname, row.names = FALSE)
 
 # ----------- #
@@ -366,7 +366,7 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,"_",version,".csv")
+  ofname <- paste0(path_output, "MTA_loglinear_",scale,"_Art",art,"_",variable,"_",version,".csv")
   write.csv(tr, ofname, row.names = FALSE)
 }
 stop("DONE with all EU wide MTA computations...")
@@ -503,7 +503,7 @@ tr <- dplyr::bind_rows(
   dplyr::mutate(art = paste0("Art_",art))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_alltargets_",scale,"_All_",version,".csv")
+ofname <- paste0(path_output, "MTA_loglinear_",scale,"_All_All_",version,".csv")
 write.csv(tr, ofname, row.names = FALSE)
 
 # ----------- #
@@ -625,7 +625,7 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_alltargets_",scale,"_Art",art,"_",variable,"_",version,".csv")
+  ofname <- paste0(path_output, "MTA_loglinear_",scale,"_Art",art,"_",variable,"_",version,".csv")
   write.csv(tr, ofname, row.names = FALSE)
 }
 stop("DONE with all EU MS MTA computations...")
