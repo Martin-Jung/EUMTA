@@ -68,7 +68,7 @@ sc_area <- read.csv("export/Overall_areastatistics.csv")
 # Format MTA for overall
 mta <- ss |> dplyr::filter(option == "loglinear",
                            category == "All",
-                           scale == "EU") |>
+                           scale == "MS") |>
   dplyr::select(year,ctype,y)
 
 # Combine both
