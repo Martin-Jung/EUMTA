@@ -45,16 +45,16 @@ version <- "01"
 path_output <- "export/"
 
 # Load overall
-overall <- read.csv(paste0(path_output, "MTA_alltargets_EU_All_",version,".csv")) |> 
+overall <- read.csv(paste0(path_output, "MTA_loglinear_EU_All_All_",version,".csv")) |> 
   dplyr::filter(option == "loglinear")
 overall$ctype <- factor(overall$ctype, levels = c("natura2000", "cdda", "combined"))
 
-overall_art12 <- read.csv(paste0(path_output, "MTA_alltargets_EU_Art12_species_",version,".csv")) |> dplyr::filter(option == "loglinear") 
+overall_art12 <- read.csv(paste0(path_output, "MTA_loglinear_EU_Art12_species_",version,".csv")) |> dplyr::filter(option == "loglinear") 
 overall_art12$category <- "Species"
 overall_art17 <- read_csv(
   paste0(path_output, 
-         c(paste0("MTA_alltargets_EU_Art17_species_",version,".csv"),
-           paste0("MTA_alltargets_EU_Art17_habitats_",version,".csv"))
+         c(paste0("MTA_loglinear_EU_Art17_species_",version,".csv"),
+           paste0("MTA_loglinear_EU_Art17_habitats_",version,".csv"))
          )
 ) |> dplyr::filter(option == "loglinear") 
 
@@ -125,16 +125,15 @@ overall_ms <- read.csv("export/Overall_statistics_MS.csv") |>
 overall_ms$country <- factor(overall_ms$country,levels = rev(unique(overall_ms$country)))
 
 g1 <- ggplot2::ggplot(overall_ms, aes(x = country, y = nr_features,
-                                      group = ctype, fill = ctype) ) +
+                                      group = category, fill = category) ) +
   theme_bw(base_size = 14) +
   coord_flip() +
-  geom_bar(stat = "identity",position = position_dodge(.5)) +
-  ggsci::scale_fill_aaas() +
+  geom_bar(stat = "identity",position = position_dodge(1)) +
+  ggsci::scale_fill_d3() +
   guides(fill = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
   labs(x = "", y = "Number of features covered")
-
 g1
 
 ```
@@ -278,12 +277,38 @@ g3 <- ggplot(comb |> dplyr::filter(ctype == "combined"),
   theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
   labs(x = "", y = "MTA")
   
-cat(sprintf("\n\n::: {.card title='%s'}\n\n", "By Article"))
+cat(sprintf("\n\n::: {.card title='%s'}\n\n", "By article"))
 cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
 plotly::ggplotly(g3)
 cat("\n\n::::\n\n")
 cat("\n\n:::\n\n")
 
+# By Article and type
+comb <- bind_rows(overall_art12,overall_art17)
+comb$group <- factor(comb$art,
+                   levels = c("Art_All", "Art_12","Art_17"),
+                   labels = c("All", "Art 12", "Art 17"))
+comb$ctype <- factor(comb$ctype, levels = c("natura2000", "cdda", "combined"))
+
+g4 <- ggplot(comb,
+             aes(x = year, y = y,
+                    group = group, color = group)) +
+  theme_bw(base_size = 14) +
+  geom_hline(yintercept = 0.5) +
+  geom_line(linewidth = 1.5, alpha = .6) +
+  ggsci::scale_color_d3() +
+  scale_y_continuous(limits = c(0,1)) +
+  guides(color = guide_legend(title = "Mandate")) +
+  theme(legend.position = "bottom") +
+  facet_grid(category~ctype) +
+  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "MTA")
+  
+cat(sprintf("\n\n::: {.card title='%s'}\n\n", "By area type and article"))
+cat("\n\n:::: {.cell-output-display .html-fill-item .html-fill-container}\n\n")
+plotly::ggplotly(g4)
+cat("\n\n::::\n\n")
+cat("\n\n:::\n\n")
 
 ```
 

@@ -41,9 +41,9 @@ calc_targets <- function(data = NULL,
     tr <- prioritizr:::loglinear_interpolation(
       potential_range,
       1000, # lower_bound_amount,
-      0.9,  # lower_bound_target
+      1,  # lower_bound_target
       250000, # upper_bound_amount,
-      0.2 # upper_bound_target
+      0.1 # upper_bound_target
     ) * potential_range
 
     # Cap to 1 million km2

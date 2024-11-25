@@ -26,22 +26,16 @@ source("code/00_functions.R")
 path_output <- "export/"
 dir.create(path_output, showWarnings = FALSE)
 
-# Checks
-assertthat::assert_that(
-  file.exists("temporary_data/N2k.gpkg"),
-  file.exists("temporary_data/Art17_2018.gpkg")
-)
-
 # Create dataset with relevant files.
 # Edit as needed
 data <- data.frame(ifname = c("temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_EU.rds",
-                            # "temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_MS.rds",
                             "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_EU.rds",
-                            # "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_MS.rds",
-                            "temporary_data/Speciesareas__EU_Art12_birds_distribution_2013_2018_with_sensitive_species.rds"),
-                 scale = c("EU", "EU",  "EU"),
-                 art = c("17","17","12"),
-                 variable = c("habitats", "species", "species")
+                            "temporary_data/Speciesareas__EU_Art12_birds_distribution_2013_2018_with_sensitive_species.rds",
+                   "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_MS.rds",
+                   "temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_MS.rds"),
+                 scale = c("EU", "EU",  "EU", "MS", "MS"),
+                 art = c("17","17","12", "17", "17"),
+                 variable = c("habitats", "species", "species", "species", "habitats")
                  )
 assertthat::assert_that(
   nrow(data)>0, all(file.exists(data$ifname)),
@@ -64,16 +58,18 @@ df$category[is.na(df$category)] <- "Species"
 write.csv(df,"export/Overall_statistics.csv",row.names = FALSE)
 
 # Average conserved area and proportion per EU MS
-df <- data |>
-  dplyr::pull(ifname) |> map_dfr(readRDS)
+df <- dplyr::bind_rows(
+  data |> dplyr::filter(scale == "MS"),
+  data |> dplyr::filter(art == 12)
+) |> dplyr::pull(ifname) |> map_dfr(readRDS)
 df$category[is.na(df$category)] <- "Species"
 
 df <- df |>
+  dplyr::filter(country != "All") |>
   dplyr::group_by(country, ctype, category) |>
   dplyr::summarise(nr_features = dplyr::n_distinct(code),
                    mean_conservedarea = mean(conservedarea_km2),
-                   prop = (sum(conservedarea_km2) / sum(totalarea_km2)) ) |>
-  dplyr::filter(country != "All")
+                   prop = (sum(conservedarea_km2) / sum(totalarea_km2)) )
 
 df <- df |> dplyr::group_by(country, ctype, category) |> dplyr::summarise(
   nr_features = sum(nr_features),
@@ -119,13 +115,14 @@ df$year <- factor(df$year,
 ## Calculate the amount and proportion in conservation areas
 # First overall
 overall <- df |>
-  dplyr::filter(category == "All", ctype == "combined",
-                country == "All", year == "2018-2024") |>
-  dplyr::group_by(ctype,code) |>
+  dplyr::filter(ctype == "combined", country == "All",
+                year == "2018-2024") |>
+  dplyr::group_by(category, ctype,code) |>
   dplyr::reframe(total_conservedarea_km2 = sum(conservedarea_km2,na.rm = TRUE),
                  totalarea_km2 = sum(totalarea_km2,na.rm = TRUE)) |>
   dplyr::mutate(fullprop = (total_conservedarea_km2 / totalarea_km2) |> units::drop_units() )
-assertthat::assert_that(all( between(overall$fullprop, 0,1) ) )
+assertthat::assert_that(nrow(overall)>0,
+                        all( between(overall$fullprop, 0,1) ) )
 
 # Per year
 peryear <- df |> dplyr::filter(country == "All") |>
@@ -159,6 +156,16 @@ tr_loglinear <- calc_targets(data = overall,
 tr_flat <- tr_flat |> units::drop_units()
 tr_exrisk <- tr_exrisk |> units::drop_units()
 tr_loglinear <- tr_loglinear |> units::drop_units()
+
+# Checks
+assertthat::assert_that(
+  !anyNA(tr_flat$target_absolute),
+  all(tr_flat$code %in% overall$code),
+  !anyNA(tr_loglinear$target_absolute),
+  all(tr_loglinear$code %in% overall$code),
+  !anyNA(tr_exrisk$target_absolute),
+  all(tr_exrisk$code %in% overall$code)
+)
 
 # Make a copy but anonymizing the codes
 write.csv(tr_loglinear |>
@@ -371,7 +378,7 @@ for(i in 1:nrow(biodiversity) ){
 }
 stop("DONE with all EU wide MTA computations...")
 
-#### EU MS - Calculate MTA based on N2k areas ####
+#### EU MS - Calculate MTA based on EU MS reporting ####
 # We calculate the MTA across all areas and per time-period
 # And for each dataset.
 
@@ -381,14 +388,12 @@ biodiversity <- dplyr::bind_rows(
   data |> dplyr::filter(art == 12)
 ) |> dplyr::mutate(scale = "MS")
 scale <- "MS"
+assertthat::assert_that(nrow(biodiversity)>2)
 
 ## -- First calculate overall with all datasets combined  -- ##
 # Load all files of that scale
 df <- biodiversity |>
-  dplyr::pull(ifname) |> map_dfr(readRDS) |>
-  # Recalculate to km2
-  dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                totalarea_km2 = units::set_units(totalarea_m2, km^2))
+  dplyr::pull(ifname) |> map_dfr(readRDS)
 
 # Check for duplicates and if found add category first
 if(anyDuplicated(df$code)>0){
@@ -516,10 +521,7 @@ for(i in 1:nrow(biodiversity) ){
 
   # For all
   # Load the folder
-  df <- readRDS(ifname) |>
-    # Recalculate to km2
-    dplyr::mutate(conservedarea_km2 = units::set_units(conservedarea_m2, km^2),
-                  totalarea_km2 = units::set_units(totalarea_m2, km^2))
+  df <- readRDS(ifname)
 
   # Add category
   if(!utils::hasName(df, "category")) df$category <- "species"
