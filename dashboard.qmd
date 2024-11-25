@@ -45,7 +45,7 @@ version <- "01"
 path_output <- "export/"
 
 # Load overall
-overall <- read.csv(paste0(path_output, "MTA_loglinear_EU_All_All_",version,".csv")) |> 
+overall <- read.csv(paste0(path_output, "MTA_loglinear_MS_All_All_",version,".csv")) |> 
   dplyr::filter(option == "loglinear")
 overall$ctype <- factor(overall$ctype, levels = c("natura2000", "cdda", "combined"))
 
@@ -53,13 +53,13 @@ overall_art12 <- read.csv(paste0(path_output, "MTA_loglinear_EU_Art12_species_",
 overall_art12$category <- "Species"
 overall_art17 <- read_csv(
   paste0(path_output, 
-         c(paste0("MTA_loglinear_EU_Art17_species_",version,".csv"),
-           paste0("MTA_loglinear_EU_Art17_habitats_",version,".csv"))
+         c(paste0("MTA_loglinear_MS_Art17_species_",version,".csv"),
+           paste0("MTA_loglinear_MS_Art17_habitats_",version,".csv"))
          )
 ) |> dplyr::filter(option == "loglinear") 
 
 # Targets
-targets <- read.csv(paste0(path_output,"Overall_targetsloglinear_",version,".csv"))
+targets <- read.csv(paste0(path_output,"Overall_targetsloglinear_","MS","_",version,".csv"))
 
 p <- ggplot() + theme_void()
 
@@ -132,7 +132,7 @@ g1 <- ggplot2::ggplot(overall_ms, aes(x = country, y = nr_features,
   ggsci::scale_fill_d3() +
   guides(fill = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x.bottom = element_text(hjust = 1)) +
   labs(x = "", y = "Number of features covered")
 g1
 
@@ -158,7 +158,7 @@ g2 <- ggplot2::ggplot(overall_ms, aes(x = country, y = prop,
   ggsci::scale_fill_d3() +
   guides(fill = guide_legend(title = "")) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x.bottom = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x.bottom = element_text(hjust = 1)) +
   labs(x = "", y = "Mean distribution conserved (%)")
 
 g2
@@ -360,7 +360,7 @@ The current calculation of the MTA is feasible every 6 years and can also be fur
 ## Data sources
 
 ::: {.card title="Data"}
-As data sources we relied for this demonstration on the officially used Article 12 ('Birds directive') and Article 17 ('Habitats directive') reporting data. Sensitive species were also included in those calculations and it is because of this reason that the input data can not be shared publicly.
+As data sources we relied for this demonstration on the officially used Article 12 ('Birds directive') and Article 17 ('Habitats directive') reporting data made by Member states (MS). Sensitive species were also included in those calculations and it is because of this reason that the input data can not be shared publicly.
 
 As conservation areas we relied on the [Natura2000 geopackage](https://www.eea.europa.eu/data-and-maps/data/natura-14/natura-2000-spatial-data "EEA Natura 2000 layer") (last updated in April 2024).
 

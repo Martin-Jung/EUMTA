@@ -78,7 +78,7 @@ df <- df |> dplyr::group_by(country, ctype, category) |> dplyr::summarise(
 )
 write.csv(df,"export/Overall_statistics_MS.csv",row.names = FALSE)
 
-#### Overall across EU - Calculate MTA for conservation areas ####
+#### EU - Calculate MTA based on EU-wide reporting ####
 # We calculate the MTA across all areas and per time-period
 # And for each dataset.
 
@@ -95,16 +95,23 @@ df <- biodiversity |>
 if(anyDuplicated(df$code)>0){
   # Set missing category first
   df$category[is.na(df$category)] <- "Species"
-
-  df$code <- paste0(stringr::str_sub(df$category,start = 0,end = 1),
-                    df$code[which(duplicated(df$code))]
-  )
 }
+df$code <- paste0(stringr::str_sub(df$category,start = 0,end = 1),
+                  df$code[which(duplicated(df$code))]
+)
+
 # Set category to all
 df$category <- "All"
 
 # Reset for Birds directive the country as we are interested in overall patterns
 df$country[df$name=="EU_Art12_birds_distribution_2013_2018_with_sensitive_species"] <- "All"
+
+# Add Article
+df$art <- factor(df$name, levels = c("Art17_habitats_distribution_2013_2018_EU",
+                                     "Art17_species_distribution_2013_2018_EU",
+                                     "EU_Art12_birds_distribution_2013_2018_with_sensitive_species"),
+                 labels = c("Art17","Art17","Art12")
+                 )
 
 # Recategorize groups
 df$year <- factor(df$year,
@@ -171,7 +178,7 @@ assertthat::assert_that(
 write.csv(tr_loglinear |>
             # dplyr::slice(which(overall$ctype=="combined")) |>
             dplyr::select(option, target_relative),
-          paste0("export/Overall_targetsloglinear_",version,".csv"),
+          paste0("export/Overall_targetsloglinear_",scale,"_",version,".csv"),
                  row.names = FALSE)
 
 # --- #
@@ -234,23 +241,6 @@ assertthat::assert_that(nrow(tr)>0, all(dplyr::between(tr$y,0,1)))
 # Write the output
 ofname <- paste0(path_output, "MTA_loglinear_",scale,"_All_All_",version,".csv")
 write.csv(tr, ofname, row.names = FALSE)
-
-# ----------- #
-## Furthermore calculate the overall MTA contribution per region and per country
-# Here we use the targets derived from above, calculating their contribution of
-# by geographic region.
-
-# assertthat::assert_that(nrow(overall)>0,
-#                         nrow(tr_loglinear)>0)
-#
-# # Summarize per country
-# country <- df |>
-#   dplyr::filter(country != "All", year == "2018-2024") |>
-#   dplyr::group_by(category,ctype, country, code) |>
-#   dplyr::reframe(country_conservedarea_km2 = sum(conservedarea_km2),
-#                  totalarea_km2 = sum(totalarea_km2)) |>
-#   dplyr::mutate(fullprop = (country_conservedarea_km2 / totalarea_km2) |> units::drop_units() ) |>
-# units::drop_units()
 
 # ----------- #
 # Overall per dataset (Art 17, species, habitat, etc...)
@@ -399,11 +389,10 @@ df <- biodiversity |>
 if(anyDuplicated(df$code)>0){
   # Set missing category first
   df$category[is.na(df$category)] <- "Species"
-
-  df$code <- paste0(stringr::str_sub(df$category,start = 0,end = 1),
-                    df$code[which(duplicated(df$code))]
-  )
 }
+df$code <- paste0(stringr::str_sub(df$category,start = 0,end = 1),
+                  df$code[which(duplicated(df$code))]
+)
 # Set category to all
 df$category <- "All"
 
@@ -451,6 +440,12 @@ tr_loglinear <- calc_targets(data = overall,
 tr_flat <- tr_flat |> units::drop_units()
 tr_exrisk <- tr_exrisk |> units::drop_units()
 tr_loglinear <- tr_loglinear |> units::drop_units()
+
+# Make a copy but anonymizing the codes
+write.csv(tr_loglinear |>
+            dplyr::select(option, target_relative),
+          paste0("export/Overall_targetsloglinear_",scale,"_",version,".csv"),
+          row.names = FALSE)
 
 # --- #
 # Calculate the average MTA across time periods for the various targets
@@ -631,3 +626,21 @@ for(i in 1:nrow(biodiversity) ){
   write.csv(tr, ofname, row.names = FALSE)
 }
 stop("DONE with all EU MS MTA computations...")
+
+
+# ----------- #
+## Furthermore calculate the overall MTA contribution per region and per country
+# Here we use the targets derived from above, calculating their contribution of
+# by geographic region.
+
+# assertthat::assert_that(nrow(overall)>0,
+#                         nrow(tr_loglinear)>0)
+#
+# # Summarize per country
+# country <- df |>
+#   dplyr::filter(country != "All", year == "2018-2024") |>
+#   dplyr::group_by(category,ctype, country, code) |>
+#   dplyr::reframe(country_conservedarea_km2 = sum(conservedarea_km2),
+#                  totalarea_km2 = sum(totalarea_km2)) |>
+#   dplyr::mutate(fullprop = (country_conservedarea_km2 / totalarea_km2) |> units::drop_units() ) |>
+# units::drop_units()

@@ -65,6 +65,9 @@ if(spatial){
   rm(biogeo)
 }
 
+# Multiply cas with cellsize in km2
+cas <- cas * terra::cellSize(cas, unit="km")
+
 # Checks
 assertthat::assert_that(
   is.numeric(cores),
@@ -91,7 +94,7 @@ lyrs <- sf::st_layers(path_art17)
 # registerDoParallel(cl = cl)
 
 # Loop through each assessment type focussing on EU
-for(name in lyrs$name[1:4]){ # name = lyrs$name[2]
+for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
   message(name)
   if(file.exists(paste0("temporary_data/Speciesareas__",name, ".rds"))) next()
 
@@ -112,7 +115,7 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[2]
                   .packages = c("dplyr", "exactextractr","terra","assertthat")
                   ) %do% {
     # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
-    # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[27]
+    # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[1]
     sub <- subset(data_sens, code == co)
     # pb$tick()
 
@@ -123,16 +126,19 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[2]
     }
 
     # Exact extract
-    ex <- exactextractr::exact_extract(cas * terra::cellSize(cas, unit="km"),
+    ex <- exactextractr::exact_extract(cas,
                                        sub, fun = "sum",
                                        force_df = TRUE, progress = FALSE)
     names(ex) <- stringr::str_remove(names(ex), "sum.")
+    assertthat::assert_that(nrow(sub) == nrow(ex))
+
     # Combine with sub and summarize
     o <- dplyr::bind_cols(sub, ex)
     # Split and clear value
     o <- o |> pivot_longer(cols= names(ex)) |>
       tidyr::separate(name, into = c("ctype","sep","year"),sep = "_") |>
-      dplyr::group_by(maptype, category, ctype, region, country, year, code) |>
+      sf::st_drop_geometry() |>
+      dplyr::group_by(maptype, category, ctype, region,country, year, code) |>
       dplyr::reframe(conservedarea_km2 = units::set_units(sum(value),"km2") )
     # Add dataset name
     o <- o |> dplyr::mutate(name = name, .before = "maptype")
@@ -143,6 +149,7 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[2]
       sub |> dplyr::group_by(maptype, category, region, country, code) |>
         dplyr::reframe(totalarea_km2 = units::set_units( sum(sf::st_area(geom)),"km2") )
     )
+
     # Check for rounding issues with area distortion in which case, take the maximum
     if(any(o$conservedarea_km2>=o$totalarea_km2)){
       message("Area rounding issue found for ", co)
@@ -210,7 +217,7 @@ for(name in lyrs$name){ # name = lyrs$name
     }
 
     # Exact extract
-    ex <- exactextractr::exact_extract(cas * terra::cellSize(cas, unit="km"),
+    ex <- exactextractr::exact_extract(cas,
                                        sub, fun = "sum",
                                        force_df = TRUE, progress = FALSE)
     names(ex) <- stringr::str_remove(names(ex), "sum.")
