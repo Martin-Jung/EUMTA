@@ -10,6 +10,8 @@ library(terra)
 library(sf)
 library(ibis.iSDM)
 library(assertthat)
+library(lubridate)
+library(dplyr)
 library(stringr)
 # Load custom functions
 source("code/00_functions.R")
@@ -64,32 +66,49 @@ n2k_sites <- n2k_sites |> dplyr::filter(SITECODE %in% n2k$SITECODE)
 # A: SPAs (Special Protection Areas - sites designated under the Birds Directive);
 # B: SCIs and SACs (Sites of Community Importance and Special Areas of Conservation - sites designated under the Habitats Directive);
 # C: where SPAs and SCIs/SACs boundaries are identical (sites designated under both directives).
-n2k$DATE <- ifelse(is.na(n2k$DATE_SPA),
-                   ifelse(is.na(n2k$DATE_SAC),
-                          ifelse(is.na(n2k$DATE_PROP_SCI),
-                                 # Assume the compilation date as the earliest
-                                 # Date of recognition
-                                 as.character(n2k$DATE_COMPILATION),
-                                 as.character(n2k$DATE_PROP_SCI)),
-                          as.character(n2k$DATE_SAC)),
-                   as.character(n2k$DATE_SPA))
 
-# Get missing dates (France only) and assign DATE_CONF_SCI here
-n2k[which(is.na(n2k$DATE)),"DATE"] <- as.character(n2k[which(is.na(n2k$DATE)),"DATE_CONF_SCI"])
+## Old approach
+# n2k$DATE <- ifelse(is.na(n2k$DATE_SPA),
+#                    ifelse(is.na(n2k$DATE_SAC),
+#                           ifelse(is.na(n2k$DATE_PROP_SCI),
+#                                  # Assume the compilation date as the earliest
+#                                  # Date of recognition
+#                                  as.character(n2k$DATE_COMPILATION),
+#                                  as.character(n2k$DATE_PROP_SCI)),
+#                           as.character(n2k$DATE_SAC)),
+#                    as.character(n2k$DATE_SPA))
+
+# New query
+n2k$A_year <- ifelse(n2k$SITETYPE == 'A', lubridate::year(n2k$DATE_SPA), 0)
+n2k$B_year <- ifelse(n2k$SITETYPE == 'B', lubridate::year(n2k$DATE_PROP_SCI), 0)
+n2k$C_year <- ifelse(n2k$SITETYPE == 'C',
+                     ifelse(lubridate::year(n2k$DATE_PROP_SCI) < lubridate::year(n2k$DATE_SPA),
+                            lubridate::year(n2k$DATE_PROP_SCI), lubridate::year(n2k$DATE_SPA)),
+                     0
+)
+
+# Assign the date as the non-zero year
+n2k$DATE <- ifelse(n2k$A_year > 0, n2k$A_year,
+                        ifelse(n2k$B_year > 0, n2k$B_year,
+                               ifelse(n2k$C_year > 0, n2k$C_year, NA)))
+
+# How many have an existing date?
+message("Number of N2k sites with a date: ",
+        nrow(n2k[which(!is.na(n2k$DATE)),]),
+        " out of ", nrow(n2k), " (",
+        round(nrow(n2k[which(!is.na(n2k$DATE)),]) / nrow(n2k) * 100, 1), "%)")
+
+table(n2k$COUNTRY_CODE[which(is.na(n2k$DATE))]) # Almost all french N2k sites here...
+
+# Get missing dates (almost exclusively France only) and assign DATE_CONF_SCI here
+n2k[which(is.na(n2k$DATE)),"DATE"] <- lubridate::year( as.character(n2k[which(is.na(n2k$DATE)),"DATE_CONF_SCI"]) )
 
 # For all remaining ones assign earliest date as date of N2k enactment
-n2k[which(is.na(n2k$DATE)),"DATE"] <- as.character("1992-05-01")
-assertthat::assert_that(!anyNA(n2k$DATE))
-
-# Format and categorize the dates
-n2k$DATE <- as.Date(n2k$DATE)
-assertthat::assert_that(!anyNA(n2k$DATE))
-# Correct that one wrong entry in Bulgaria (typo to 2013)
-n2k[which(n2k$DATE=="2031-03-01"),"DATE"] <- as.Date("2013-03-01")
+n2k[which(is.na(n2k$DATE)),"DATE"] <- lubridate::year(as.character("1992-05-01"))
 assertthat::assert_that(!anyNA(n2k$DATE))
 
 # Add a year and group
-n2k$YEAR <- lubridate::year(n2k$DATE)
+n2k$YEAR <- (n2k$DATE)
 
 n2k$YEAR_GROUP <- cut(n2k$YEAR, c(1900,2000,2006,2012,2018,2024),
                       labels = c("<2000", "2000-2006", "2006-2012",
@@ -130,7 +149,7 @@ cdda$YEAR <- cdda$legalFoundationDate
 cdda[which(is.na(cdda$YEAR)),"YEAR"] <- as.character("1992")
 cdda$YEAR <- as.numeric(cdda$YEAR)
 assertthat::assert_that(!anyNA(cdda$YEAR),
-                        all(cdda$YEAR <= year(today()) ))
+                        all(cdda$YEAR <= lubridate::year(lubridate::today()) ))
 
 cdda$YEAR_GROUP <- cut(cdda$YEAR, c(min(cdda$YEAR),2000,2006,2012,2018,2024),
                       labels = c("<2000", "2000-2006", "2006-2012",
