@@ -7,3 +7,5 @@
 
 # Ignore temporary data folder
 temporary_data/
+
+**/*.quarto_ipynb

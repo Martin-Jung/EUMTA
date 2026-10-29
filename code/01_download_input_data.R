@@ -4,7 +4,7 @@
 # data folder as they can be quite large.
 #
 # Author:
-# Martin Jung (IIASA) - 2024
+# Martin Jung (IIASA) - 2024-2026
 # # # # # # # # # # # # # # # #
 
 # ---- #
@@ -22,15 +22,29 @@ dir.create(path_temp, showWarnings = FALSE)
 url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_1_mio_biogeo-regions_p_2016_v01_r00/BiogeoRegions2016.shp"
 curl::curl_download(url, destfile = paste0(path_temp, "BiogeoRegions.shp"))
 
-# Get CDDA geopackage file from EEA for Europe #
-# Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/616ef48f-7196-4e30-b201-6c97808fa68a
-url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_100_k_natda-poly_p_2023-2024_v22_r00/GPKG/NatDA_2024_v01_public_EuropeEPSG3035.gpkg"
-curl::curl_download(url, destfile = paste0(path_temp, "CDDA.gpkg"))
+# Older CDDA data (2019) for Europe
+if(TRUE==FALSE){
+  cli::cli_alert_info("These data have been depricated...")
+  # Get CDDA geopackage file from EEA for Europe #
+  # Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/616ef48f-7196-4e30-b201-6c97808fa68a
+  url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_100_k_natda-poly_p_2023-2024_v22_r00/GPKG/NatDA_2024_v01_public_EuropeEPSG3035.gpkg"
+  curl::curl_download(url, destfile = paste0(path_temp, "CDDA.gpkg"))
 
-# Get Natura 2000 data #
-# Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/95e717d4-81dc-415d-a8f0-fecdf7e686b0
-url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_100_k_natura2000_p_2022_v01_r00/Natura2000_end2022.gpkg"
-curl::curl_download(url, destfile = paste0(path_temp, "N2k.gpkg"))
+  # Get Natura 2000 data #
+  # Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/95e717d4-81dc-415d-a8f0-fecdf7e686b0
+  url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_100_k_natura2000_p_2022_v01_r00/Natura2000_end2022.gpkg"
+  curl::curl_download(url, destfile = paste0(path_temp, "N2k.gpkg"))
+} else {
+  cli::cli_alert_info("Download of public Natura2000 and NatDa data...")
+  # Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/028003e7-7585-4d69-92fc-7f81e0cc2340
+  url <- "https://sdi.eea.europa.eu/datashare/s/8ribwpg4cZNkC3T/download?path=%2F&files=NatDA_2026_v01_public_EuropeEPSG3035.gpkg&downloadStartSecret=qzcx8ayv1f"
+  curl::curl_download(url, destfile = paste0(path_temp, "NatDa.gpkg"))
+
+  # Latest Natura 2000, version 2024
+  # Source: https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/91357f39-7866-41ce-b447-43905c364ec8
+  url <- "https://sdi.eea.europa.eu/webdav/datastore/public/eea_v_3035_100_k_natura2000_p_2022_v01_r00/Natura2000_end2022.gpkg"
+  curl::curl_download(url, destfile = paste0(path_temp, "N2k.gpkg"))
+}
 
 # --- #
 ## Species and habitats ##
@@ -63,6 +77,13 @@ curl::curl_download(url, destfile = paste0(path_temp, "Article17_2020_dataset_cs
 # EU Corine Accounting layer
 ## https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/metadata/a55d9224-a326-4cb1-9b9c-3a324520341a
 # --> Downloaded manually to CLC folder
+# --> Updated to year 2024
 assertthat::assert_that(
   dir.exists(paste0(path_temp, "CLC_account"))
 )
+
+# --- #
+# Species - Habitat association data
+# Source: https://www.eea.europa.eu/en/datahub/datahubitem-view/e6c5dc03-4df2-4f43-a423-792ed9b4a9d3
+url <- "https://sdi.eea.europa.eu/datashare/s/77G4WQZXo9MEEGR/download?path=%2F&files=Policy%20relevant%20groups%20for%20Habitats%20Directive%20habitats%20and%20species%20Annexes.xlsx"
+curl::curl_download(url, destfile = paste0(path_temp, "Policy relevant groups for Habitats Directive habitats and species Annexes.xlsx"))

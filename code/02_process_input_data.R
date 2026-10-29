@@ -3,7 +3,7 @@
 # to the spatial grain and extent of the Corine accounting layer.
 #
 # Author:
-# Martin Jung (IIASA) - 2024
+# Martin Jung (IIASA) - 2024-2026
 # # # # # # # # # # # # # # # #
 
 library(terra)
@@ -37,10 +37,10 @@ path_nuts <- paste0(path_temp, "NUTS_RG_20M_2024_4326.shp/NUTS_RG_20M_2024_4326.
 assertthat::assert_that(file.exists(path_nuts))
 
 # Create background and rasterize conservation areas #
-corine <- terra::rast( paste0(path_corine, "CLC2000ACC_V2018_20.tif") )
+corine <- terra::rast( paste0(path_corine, "eea_r_3035_100_m_clc-2024-acc_p_2024_v21_r00/CLC2024ACC_V2024_21.tif") )
 background <- emptyraster(corine)
 
-# Also get the reference grid
+# Also get the EEA reference grid
 background_10km <- terra::rast("../11.1.2_ReferenceGrids/ReferenceGrid_Europe_bin_10000m.tif") |>
   terra::project(terra::crs(background))
 
@@ -110,16 +110,20 @@ assertthat::assert_that(!anyNA(n2k$DATE))
 # Add a year and group
 n2k$YEAR <- (n2k$DATE)
 
-n2k$YEAR_GROUP <- cut(n2k$YEAR, c(1900,2000,2006,2012,2018,2024),
+# NOTE: We have 5 sites with year 2025 in the N2k data.
+# We here assign them to the year 2024 to be consistent with reporting periods.
+n2k$YEAR_GROUP <- cut(n2k$YEAR, c(1900,2000,2006,2012,2018,2025),
                       labels = c("<2000", "2000-2006", "2006-2012",
                                  "2012-2018", "2018-2024"),include.lowest = TRUE)
 assertthat::assert_that(!anyNA(n2k$YEAR_GROUP))
 
-#### Process CDDA data ####
+#### Process CDDA / NatDA data ####
 # Here we create a binary background that contains the national designated areas
 # subset used for the accounting of representation.
 
-# Get the CDDA areas
+# In later versions (2026 onwards) the CDDA data has been superseeded by the NatDA data.
+
+# Get the CDDA / NatDa areas
 lyrs <- sf::st_layers(path_cdda)
 
 # Get the CDDA sites
@@ -135,7 +139,7 @@ sf::st_geometry(cdda_sites) <- "geometry"
 # Cast to multipolygon and to background
 cdda_sites <- cdda_sites |> sf::st_transform(crs = sf::st_crs(background))
 
-# --- Ignore point data as this is not compatable with the reference grid ---
+# --- Ignore point data as this is not compatible with the reference grid ---
 cdda_sites <- cdda_sites |> dplyr::filter(geomType == "polygon")
 # --- #
 cdda_sites <- cdda_sites |> sf::st_cast('MULTIPOLYGON') # Cast to multypolygon
@@ -157,9 +161,12 @@ cdda$YEAR_GROUP <- cut(cdda$YEAR, c(min(cdda$YEAR),2000,2006,2012,2018,2024),
 assertthat::assert_that(!anyNA(cdda$YEAR_GROUP))
 
 # --- #
-#### Rasterize for each year group ####
+#### Rasterize PAs for each year group ####
 # Here the idea is write one layer per YEAR GROUP
 # so as to capture expansion per years across the reference grid.
+
+# Overwrite previous files
+do_overwrite <- TRUE
 
 # First for Natura2000
 for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
@@ -172,7 +179,7 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
     "2012-2018" = 2018,
     "2018-2024" = 2024
   )
-  if(file.exists(paste0(path_temp, "natura2000_",as.character(lastyear),".tif"))) next()
+  if(do_overwrite == FALSE & file.exists(paste0(path_temp, "natura2000_",as.character(lastyear),".tif"))) next()
 
   # Subset including all sites younger and including this year
   sub <- subset(n2k, YEAR <= lastyear)
@@ -181,6 +188,7 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
   # Rasterize and write the whole output
   n2k_full <- terra::rasterize(n2k_sub, background, field = 1, touches = TRUE)
 
+  # Rasterized at Corine resolution
   terra::writeRaster(n2k_full,
                      filename = paste0(path_temp, "natura2000_",as.character(lastyear),".tif"),
                      datatype = 'INT1U',
@@ -192,7 +200,7 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
   # Also for 10k
   n2k_full <- terra::rasterize(n2k_sub, background_10km, cover = TRUE, touches = TRUE)
   terra::writeRaster(n2k_full,
-                     filename = paste0(path_temp, "natura2000_frac_",as.character(lastyear),".tif"),
+                     filename = paste0(path_temp, "natura2000_frac_",as.character(lastyear),"_10km.tif"),
                      datatype = 'FLT4S',
                      overwrite = TRUE,
                      gdal = c("COMPRESS=DEFLATE"),
@@ -201,8 +209,11 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
   rm(n2k_full);gc()
 }
 
+gc()
+
 # Then for CDDA
-for(yg in levels(cdda$YEAR_GROUP)){ # levels(cdda$YEAR_GROUP)[2]->yg
+for(yg in levels(cdda$YEAR_GROUP)){
+  # levels(cdda$YEAR_GROUP)[2]->yg
   message(yg)
   # Subset to all year prior to the last as cumulative expansion
   lastyear <- switch (as.character(yg),
@@ -212,7 +223,7 @@ for(yg in levels(cdda$YEAR_GROUP)){ # levels(cdda$YEAR_GROUP)[2]->yg
                       "2012-2018" = 2018,
                       "2018-2024" = 2024
   )
-  if(file.exists(paste0(path_temp, "cdda_",as.character(lastyear),".tif"))) next()
+  if(do_overwrite == FALSE & file.exists(paste0(path_temp, "cdda_",as.character(lastyear),".tif"))) next()
 
   # Subset including all sites younger and including this year
   sub <- subset(cdda, YEAR <= lastyear)
@@ -232,7 +243,7 @@ for(yg in levels(cdda$YEAR_GROUP)){ # levels(cdda$YEAR_GROUP)[2]->yg
   # Also for 10k
   cdda_full <- terra::rasterize(cdda_sub, background_10km, cover = TRUE, touches = TRUE)
   terra::writeRaster(cdda_full,
-                     filename = paste0(path_temp, "cdda_frac_",as.character(lastyear),".tif"),
+                     filename = paste0(path_temp, "cdda_frac_",as.character(lastyear),"_10km.tif"),
                      datatype = 'FLT4S',
                      overwrite = TRUE,
                      gdal = c("COMPRESS=DEFLATE"),
@@ -240,6 +251,8 @@ for(yg in levels(cdda$YEAR_GROUP)){ # levels(cdda$YEAR_GROUP)[2]->yg
   )
   rm(cdda_full,n2k_full);gc()
 }
+
+gc()
 
 # Then for both combined
 for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
@@ -252,41 +265,27 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
                       "2012-2018" = 2018,
                       "2018-2024" = 2024
   )
-  if(file.exists(paste0(path_temp, "combined_",as.character(lastyear),".tif")) ) next()
+  if(do_overwrite == FALSE & file.exists(paste0(path_temp, "combined_",as.character(lastyear),".tif")) ) next()
 
-  # Subset including all sites younger and including this year
-  sub1 <- subset(n2k, YEAR <= lastyear)
-  sub2 <- subset(cdda, YEAR <= lastyear)
-
-  # Filter
-  n2k_sub <- n2k_sites |> dplyr::filter(SITECODE %in% unique(sub1$SITECODE)) |>
-    sf::st_transform(crs = sf::st_crs(background))
-  sf::st_geometry(n2k_sub) <- "geometry"
-  cdda_sub <- cdda_sites |> dplyr::filter(cddaId %in% unique(sub2$cddaId)) |>
-    sf::st_transform(crs = sf::st_crs(background))
-  sf::st_geometry(cdda_sub) <- "geometry"
-
-  # Then select relevant columns and rename and combine
-  comb <- bind_rows(
-    n2k_sub |> dplyr::rename(siteid = SITECODE) |> dplyr::select(siteid) |>
-      dplyr::mutate(siteid = as.character(siteid)),
-    cdda_sub |> dplyr::rename(siteid = cddaId) |> dplyr::select(siteid) |>
-      dplyr::mutate(siteid = as.character(siteid))
-  )
-
-  # Rasterize and write the whole output
-  comb_full <- terra::rasterize(comb, background, field = 1, touches = TRUE)
+  # Combine the already-rasterized layers; preserve uncovered cells as NA.
+  n2k_full <- terra::rast(paste0(path_temp, "natura2000_", as.character(lastyear), ".tif"))
+  cdda_full <- terra::rast(paste0(path_temp, "cdda_", as.character(lastyear), ".tif"))
+  comb_full <- terra::app(c(n2k_full, cdda_full), sum, na.rm = TRUE)
+  comb_full <- terra::clamp(comb_full, -Inf, 1, values = TRUE)
 
   terra::writeRaster(comb_full,
-                     filename = paste0(path_temp, "combined_",as.character(lastyear),".tif"),
+                     filename = paste0(path_temp, "combined_",as.character(lastyear),"_10km.tif"),
                      datatype = 'INT1U',
                      overwrite = TRUE,
                      gdal = c("COMPRESS=DEFLATE"),
                      progress = TRUE
   )
 
-  # Also for 10k
-  comb_full <- terra::rasterize(comb, background_10km, cover = TRUE, touches = TRUE)
+  # Combine the fractional 10 km layers using the same capped-sum estimate.
+  n2k_full <- terra::rast(paste0(path_temp, "natura2000_frac_", as.character(lastyear), "_10km.tif"))
+  cdda_full <- terra::rast(paste0(path_temp, "cdda_frac_", as.character(lastyear), "_10km.tif"))
+  comb_full <- terra::app(c(n2k_full, cdda_full), sum, na.rm = TRUE)
+  comb_full <- terra::clamp(comb_full, -Inf, 1, values = TRUE)
   terra::writeRaster(comb_full,
                      filename = paste0(path_temp, "combined_frac_",as.character(lastyear),".tif"),
                      datatype = 'FLT4S',
@@ -294,7 +293,7 @@ for(yg in levels(n2k$YEAR_GROUP)){ # levels(n2k$YEAR_GROUP)[2]->yg
                      gdal = c("COMPRESS=DEFLATE"),
                      progress = TRUE
   )
-  rm(comb_full, comb);gc()
+  rm(comb_full, n2k_full, cdda_full);gc()
 }
 
 message("Rasterized layers to reference grids!")

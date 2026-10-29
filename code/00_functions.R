@@ -2,10 +2,25 @@
 #' Target calculations for a given feature
 #'
 #' @description
-#' This function calculates the targets
+#' This function calculates the targets for the MTA based on provided input.
+#'
+#' @param data A [`data.frame`] with the data for which the targets should be calculated.
+#' The data frame must contain a column named `code` with the feature codes.
+#' @param current_range A [`numeric`] value or vector indicating the current range of the feature(s).
+#' @param potential_range A [`numeric`] value or vector indicating the potential range of the
+#' feature(s).
+#' @param option A [`character`] string indicating the target calculation method. Options are:
+#' - `"none"`: No target calculation.
+#' - `"flat"`: Flat target calculation based on a default target value.
+#' - `"loglinear"`: Log-linear target calculation based on the potential range.
+#' - `"extinctrisk"`: Target calculation based on extinction risk.
+#' - `"frr"`: Target calculation based on the FRR method.
+#' @param default_target A [`numeric`] value between 0 and 1 indicating the
+#' default target for the flat target calculation (only used if `option` is `"flat"`).
 #'
 #' @author Martin Jung
 #' @keywords targets, indicators
+#' @export
 calc_targets <- function(data = NULL,
                          current_range, potential_range,
                          option = "flat", default_target = 0.3){
@@ -16,7 +31,7 @@ calc_targets <- function(data = NULL,
     is.numeric(potential_range), length(potential_range)>=1
   )
   # Match target calculation option
-  option <- match.arg(option, c("none", "flat", "loglinear", "extinctrisk"),
+  option <- match.arg(option, c("none", "flat", "loglinear", "extinctrisk", "frr"),
                       several.ok = FALSE)
 
   # Drop units if existing
@@ -69,6 +84,16 @@ calc_targets <- function(data = NULL,
       dplyr::mutate(option = option,
                     target_relative = ifelse(  (target_absolute / size)>=1, 1, (target_absolute / size) ) ) |>
       ungroup()
+  } else if(option == "frr"){
+    assertthat::assert_that(
+      all(is.numeric(current_range)),
+      all(is.numeric(potential_range)),
+      msg = "Current and potential ranges must be numeric values for FRR target calculation."
+    )
+    message("Computing frr targets...")
+    # TODO: Implement
+    stop("FRR target calculation is not yet implemented.")
+
   }
 
   ## Set correct units
