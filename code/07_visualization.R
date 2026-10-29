@@ -2,7 +2,7 @@
 # This script makes some summary statistics and visualizations
 #
 # Author:
-# Martin Jung (IIASA) - 2024
+# Martin Jung (IIASA) - 2024-2026
 # # # # # # # # # # # # # # # #
 
 library(ggplot2)

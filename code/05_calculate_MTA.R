@@ -3,7 +3,7 @@
 # period. This script assumes that the data has been preprocessed prior.
 #
 # Author:
-# Martin Jung (IIASA) - 2024
+# Martin Jung (IIASA) - 2024-2026
 # # # # # # # # # # # # # # # #
 
 # Load Packages
@@ -17,7 +17,8 @@ library(tidyr)
 library(lubridate)
 
 # Version - Update after each major correction.
-version <- "01"
+version <- "02"
+aoh <- FALSE
 
 # Load custom functions
 source("code/00_functions.R")
@@ -28,11 +29,12 @@ dir.create(path_output, showWarnings = FALSE)
 
 # Create dataset with relevant files.
 # Edit as needed
-data <- data.frame(ifname = c("temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_EU.rds",
-                            "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_EU.rds",
-                            "temporary_data/Speciesareas__EU_Art12_birds_distribution_2013_2018_with_sensitive_species.rds",
-                   "temporary_data/Speciesareas__Art17_species_distribution_2013_2018_MS.rds",
-                   "temporary_data/Speciesareas__Art17_habitats_distribution_2013_2018_MS.rds"),
+data <- data.frame(ifname = paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "",
+                                   c("Art17_habitats_distribution_2013_2018_EU",
+                                     "Art17_species_distribution_2013_2018_EU",
+                                     "EU_Art12_birds_distribution_2013_2018_with_sensitive_species",
+                                     "Art17_species_distribution_2013_2018_MS",
+                                     "Art17_habitats_distribution_2013_2018_MS"), ".rds"),
                  scale = c("EU", "EU",  "EU", "MS", "MS"),
                  art = c("17","17","12", "17", "17"),
                  variable = c("habitats", "species", "species", "species", "habitats")
@@ -627,20 +629,4 @@ for(i in 1:nrow(biodiversity) ){
 }
 stop("DONE with all EU MS MTA computations...")
 
-
 # ----------- #
-## Furthermore calculate the overall MTA contribution per region and per country
-# Here we use the targets derived from above, calculating their contribution of
-# by geographic region.
-
-# assertthat::assert_that(nrow(overall)>0,
-#                         nrow(tr_loglinear)>0)
-#
-# # Summarize per country
-# country <- df |>
-#   dplyr::filter(country != "All", year == "2018-2024") |>
-#   dplyr::group_by(category,ctype, country, code) |>
-#   dplyr::reframe(country_conservedarea_km2 = sum(conservedarea_km2),
-#                  totalarea_km2 = sum(totalarea_km2)) |>
-#   dplyr::mutate(fullprop = (country_conservedarea_km2 / totalarea_km2) |> units::drop_units() ) |>
-# units::drop_units()

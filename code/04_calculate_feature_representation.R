@@ -3,7 +3,7 @@
 # intersecting existing range data with protected area datasets.
 #
 # Author:
-# Martin Jung (IIASA) - 2024
+# Martin Jung (IIASA) - 2024-2026
 # # # # # # # # # # # # # # # #
 
 # Load Packages
@@ -15,7 +15,6 @@ library(tidyverse)
 library(stringr)
 library(assertthat)
 library(foreach)
-library(doParallel)
 library(tidyr)
 library(lubridate)
 library(ibis.iSDM)
@@ -27,9 +26,10 @@ source("code/00_functions.R")
 spatial <- TRUE
 aggregate_for_speed <- TRUE # Aggregate the original n2k to the Art17 grid. This increases the speed.
 
-cores <- 10
+parallelize <- TRUE
+cores <- 4
 
-# TODO: Correct for land-use?
+# TODO: Correct for land-use? Preprocess Corine accounting layers first!
 aoh <- FALSE
 
 # --- #
@@ -53,16 +53,21 @@ for(ctype in unique(tt)){
 cas <- Reduce("c", cas) # Combine all
 
 if(spatial){
+  biogeo_grid <- if (aggregate_for_speed) {
+    cas[[1]]
+  } else {
+    terra::rast("temporary_data/cdda_frac_2000_10km.tif")
+  }
   # Load Biogeogregions for intersection with Art 12
   biogeo <- sf::st_read("temporary_data/BiogeoRegions2016.shp", quiet = TRUE) |>
-    sf::st_transform(crs = sf::st_crs(cas[[1]])) |> dplyr::select(code,pre_2012) |>
+    sf::st_transform(crs = sf::st_crs(biogeo_grid)) |> dplyr::select(code,pre_2012) |>
     dplyr::rename("region" = "pre_2012") #|> sf::st_buffer(dist = 2000)
   # Rasterize to background
-  bgbio <- terra::rasterize(biogeo, cas[[1]], field = "region",touches = TRUE)
+  bgbio <- terra::rasterize(biogeo, biogeo_grid, field = "region",touches = TRUE)
   bgbio <- terra::focal(bgbio, w=15,na.policy = "only", fun = "modal")
   bgbio <- as.factor(bgbio)
   levels(bgbio) <- biogeo$region
-  rm(biogeo)
+  rm(biogeo, biogeo_grid)
 }
 
 # Multiply cas with cellsize in km2
@@ -90,13 +95,31 @@ path_art17 <- "temporary_data/Art12_Art17_SensitiveSpecies/eea_v_3035_10_mio_art
 lyrs <- sf::st_layers(path_art17)
 
 # Set parallel processing
-# cl <- parallel::makeCluster(cores)
-# registerDoParallel(cl = cl)
+local({
+  if (parallelize) {
+    cl <- parallel::makeCluster(cores)
+    on.exit({
+      foreach::registerDoSEQ()
+      parallel::stopCluster(cl)
+    }, add = TRUE)
+    doParallel::registerDoParallel(cl = cl)
 
-# Loop through each assessment type focussing on EU
-for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
+    cas_packed <- terra::wrap(cas, proxy = TRUE)
+    parallel::clusterExport(cl, c("cas_packed", "aoh"), envir = environment())
+    parallel::clusterEvalQ(cl, {
+      cas_worker <- terra::unwrap(cas_packed)
+      NULL
+    })
+  } else {
+    foreach::registerDoSEQ()
+    cas_worker <- cas
+  }
+
+  # Loop through each assessment type focussing on EU
+  for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
   message(name)
-  if(file.exists(paste0("temporary_data/Speciesareas__",name, ".rds"))) next()
+  output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
+  if(file.exists(output_file)) next()
 
   data_sens <- sf::read_sf(path_art17,name,quiet = TRUE)
 
@@ -106,14 +129,16 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
   if(!utils::hasName(data_sens, "country")) data_sens$country <- "All"
 
   assertthat::assert_that(utils::hasName(data_sens, "code"))
+  if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
 
   results <- foreach(co = unique(data_sens$code),
                   .inorder = FALSE,
                   .combine = rbind,
                   .multicombine = TRUE,
-                  .export = c("data_sens", "cas", "aoh"),
-                  .packages = c("dplyr", "exactextractr","terra","assertthat")
-                  ) %do% {
+                  .noexport = c("data_sens", "cas_worker", "name", "aoh"),
+                  .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
+                  .options.snow = list(preschedule = FALSE)
+                  ) %dopar% {
     # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
     # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[1]
     sub <- subset(data_sens, code == co)
@@ -126,7 +151,7 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
     }
 
     # Exact extract
-    ex <- exactextractr::exact_extract(cas,
+    ex <- exactextractr::exact_extract(cas_worker,
                                        sub, fun = "sum",
                                        force_df = TRUE, progress = FALSE)
     names(ex) <- stringr::str_remove(names(ex), "sum.")
@@ -167,7 +192,7 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
 
   assertthat::assert_that(is.data.frame(results))
   # Save the results
-  saveRDS(object = results, file = paste0("temporary_data/Speciesareas__",name, ".rds"))
+  saveRDS(object = results, file = output_file)
   rm(results)
 }
 
@@ -176,10 +201,11 @@ for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
 path_art12 <- "temporary_data/Art12_Art17_SensitiveSpecies/eea_v_3035_10_mio_art12-2013-2018_i_2013-2018_v01_r00/Art12-2013-2018_GPKG/ART12_3035_distribution_data_with_sensitive.gpkg"
 lyrs <- sf::st_layers(path_art12)
 
-# Loop through each assessment type and save
-for(name in lyrs$name){ # name = lyrs$name
+  # Loop through each assessment type and save
+  for(name in lyrs$name){ # name = lyrs$name
   message(name)
-  if(file.exists(paste0("temporary_data/Speciesareas__",name, ".rds"))) next()
+  output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
+  if(file.exists(output_file)) next()
 
   data_sens <- sf::read_sf(path_art12,name,quiet = TRUE)
 
@@ -197,14 +223,16 @@ for(name in lyrs$name){ # name = lyrs$name
     rm(ex,check)
   }
   assertthat::assert_that(utils::hasName(data_sens, "code"))
+  if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
 
   results <- foreach(co = unique(data_sens$code),
                      .inorder = FALSE,
                      .combine = rbind,
                      .multicombine = TRUE,
-                     .export = c("data_sens", "cas", "aoh"),
-                     .packages = c("dplyr", "exactextractr","terra","assertthat")
-  ) %do% {
+                     .noexport = c("data_sens", "cas_worker", "name", "aoh"),
+                     .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
+                     .options.snow = list(preschedule = FALSE)
+  ) %dopar% {
     # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
     # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[10]
     sub <- subset(data_sens, code == co)
@@ -217,7 +245,7 @@ for(name in lyrs$name){ # name = lyrs$name
     }
 
     # Exact extract
-    ex <- exactextractr::exact_extract(cas,
+    ex <- exactextractr::exact_extract(cas_worker,
                                        sub, fun = "sum",
                                        force_df = TRUE, progress = FALSE)
     names(ex) <- stringr::str_remove(names(ex), "sum.")
@@ -257,8 +285,9 @@ for(name in lyrs$name){ # name = lyrs$name
   assertthat::assert_that(is.data.frame(results))
 
   # Save the results
-  saveRDS(object = results, file = paste0("temporary_data/Speciesareas__",name, ".rds"))
+  saveRDS(object = results, file = output_file)
   rm(results)
-}
+  }
+})
 
 stop("Spatial: Natura 2000 representation done and saved.")
