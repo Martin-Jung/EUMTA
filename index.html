@@ -1,12 +1,255 @@
-<!DOCTYPE html>
-  <html lang="en">
-    <head>
-    <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Redirecting...</title>
-        <meta http-equiv="refresh" content="0; url=https://martin-jung.github.io/EUMTA/dashboard.html">
-    </head>
-        <body>
-          <p>You are being redirected to <a href="https://martin-jung.github.io/EUMTA/dashboard.html">the dashboard</a>. If you are not redirected automatically, click the link.</p>
-        </body>
-  </html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183c32">
+  <meta name="description" content="An indicator to support protected area performance evaluation of the EU Biodiversity Strategy 2030.">
+  <title>An outcome-based indicator for conservation areas</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="iiasa.css">
+  <link rel="stylesheet" href="theme-non-iiasa.css">
+  <script src="dashboard-data.js" defer></script>
+  <script src="dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="#overview" aria-label="Mean target achievement dashboard home">
+      <span><strong>A biodiversity based MTA</strong><small>An indicator to support protected area performance evaluation of the EU Biodiversity Strategy 2030</small></span>
+    </a>
+    <div class="topbar-actions">
+      <div class="target-tools">
+        <label class="target-control" for="target-select">
+          <span>Target method</span>
+          <select id="target-select" aria-describedby="target-status">
+            <option value="loglinear">Log-linear</option>
+            <option value="flat">Flat</option>
+            <option value="extinction">Extinction</option>
+          </select>
+        </label>
+        <span class="target-status" id="target-status" role="status" aria-live="polite"></span>
+      </div>
+      <a class="topbar-link" href="https://naturaconnect.eu/" target="_blank" rel="noreferrer">Project site <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <nav class="section-nav" aria-label="Dashboard sections">
+    <a class="active" href="#overview">Overview</a>
+    <a href="#countries">Countries</a>
+    <a href="#targets">Targets & areas</a>
+    <a href="#mandates">By directive</a>
+    <a href="#method">Method & data</a>
+  </nav>
+
+  <main>
+    <section class="overview section-wrap" id="overview">
+      <div class="overview-copy">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> MEAN TARGET ACHIEVEMENT · EUROPE</p>
+        <h1>An outcome-based indicator for conservation areas</h1>
+        <p class="intro">The Mean Target Achievement (MTA) indicator measures how well protected areas represent the species and habitats they are meant to conserve.</p>
+        <p class="period-note">Reporting periods shown: before 2000 to 2018–2024</p>
+      </div>
+
+      <div class="metrics" aria-label="Latest indicator summary">
+        <article class="metric metric-primary">
+          <span class="metric-label">Latest MTA</span>
+          <strong id="latest-mta">Loading</strong>
+          <span class="metric-foot">Combined conservation areas · 2018–2024</span>
+        </article>
+        <article class="metric metric-change">
+          <span class="metric-label">Change since 2018</span>
+          <strong id="change-mta">Loading</strong>
+          <span class="metric-foot">Change from the previous reporting period</span>
+        </article>
+        <article class="metric metric-count">
+          <span class="metric-label">Species & habitats</span>
+          <strong id="feature-count">Loading</strong>
+          <span class="metric-foot">Features included in the EU assessment</span>
+        </article>
+      </div>
+
+      <article class="chart-panel overview-chart">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">EU INDICATOR TREND</p>
+            <h2>Performance across all protected areas</h2>
+          </div>
+          <span class="panel-tag">MTA · 0–1</span>
+        </div>
+        <p class="panel-description">Mean target achievement across Natura 2000 and CDDA areas. The dotted line marks an MTA of 0.5.</p>
+        <div class="chart-scroll" id="overall-chart" aria-live="polite"><div class="chart-loading">Loading indicator data…</div></div>
+      </article>
+      <div id="data-error" class="data-error" role="alert" hidden></div>
+      <p class="source-note">Source: Article 12 and Article 17 reporting data, with conservation-area coverage through 2024.</p>
+    </section>
+
+    <section class="content-section section-wrap" id="countries">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">COUNTRY COMPARISON</p>
+          <h2>Coverage of species and habitats</h2>
+        </div>
+        <p>Country-level totals show the number of assessed features and the share of their distribution covered by combined conservation areas.</p>
+      </div>
+      <div class="split-panels">
+        <article class="chart-panel country-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">FEATURES</p><h3>Species and habitats covered</h3></div>
+            <span class="panel-unit">Count</span>
+          </div>
+          <div class="chart-scroll country-chart" id="features-chart"><div class="chart-loading">Loading country data…</div></div>
+        </article>
+        <article class="chart-panel country-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">COVERAGE</p><h3>Mean distribution conserved</h3></div>
+            <span class="panel-unit">Share of distribution</span>
+          </div>
+          <p class="panel-description">Average proportion of each feature's distribution inside conservation areas.</p>
+          <div class="chart-scroll country-chart" id="coverage-chart"><div class="chart-loading">Loading country data…</div></div>
+        </article>
+      </div>
+      <p class="source-note">Country values use Member State reporting for the combined Natura 2000 and CDDA network. Country codes follow the source dataset.</p>
+    </section>
+
+    <section class="data-band" id="targets">
+      <div class="section-wrap content-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">TARGETS & NETWORK GROWTH</p>
+            <h2>Specified targets and protected area expansion</h2>
+          </div>
+          <p>The indicator compares protected distribution with feature-specific targets, alongside the cumulative area designated over time.</p>
+        </div>
+        <div class="split-panels">
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">FEATURE TARGETS</p><h3>Distribution of relative targets</h3></div>
+              <span class="panel-unit">Proportion</span>
+            </div>
+            <p class="panel-description">Each bar counts the number of species or habitats at that target level.</p>
+            <div class="chart-scroll" id="targets-chart"><div class="chart-loading">Loading target data…</div></div>
+          </article>
+          <article class="chart-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">CUMULATIVE DESIGNATIONS</p><h3>Conservation area growth</h3></div>
+              <span class="panel-unit">Area · km²</span>
+            </div>
+            <p class="panel-description">Cumulative Natura 2000, CDDA and combined area by designation period.</p>
+            <div class="chart-scroll" id="area-chart"><div class="chart-loading">Loading area data…</div></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section section-wrap" id="mandates">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">REPORTING DIRECTIVES</p>
+          <h2>Achievement varies by directive and area type</h2>
+        </div>
+        <p>Article 12 covers birds; Article 17 covers species and habitats. Compare their MTA trends across reporting periods and conservation-area types.</p>
+      </div>
+
+      <div class="article-panels">
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">COMBINED AREAS</p><h3>By article · species</h3></div>
+            <span class="panel-unit">MTA</span>
+          </div>
+          <div class="chart-scroll" id="article-species-chart"><div class="chart-loading">Loading article data…</div></div>
+        </article>
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">COMBINED AREAS</p><h3>By article · habitats</h3></div>
+            <span class="panel-unit">MTA</span>
+          </div>
+          <div class="chart-scroll" id="article-habitats-chart"><div class="chart-loading">Loading article data…</div></div>
+        </article>
+      </div>
+
+      <div class="subsection-heading">
+        <div><p class="eyebrow">AREA TYPE × ARTICLE</p><h3>Where achievement is changing</h3></div>
+        <p>Each panel separates Natura 2000, CDDA and combined areas. MTA is shown on the same 0–1 scale.</p>
+      </div>
+      <div class="facet-grid" id="facet-grid">
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Species · Natura 2000</h4></div><div class="chart-scroll" id="facet-species-natura2000"></div></article>
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Species · CDDA</h4></div><div class="chart-scroll" id="facet-species-cdda"></div></article>
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Species · Combined</h4></div><div class="chart-scroll" id="facet-species-combined"></div></article>
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Habitats · Natura 2000</h4></div><div class="chart-scroll" id="facet-habitats-natura2000"></div></article>
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Habitats · CDDA</h4></div><div class="chart-scroll" id="facet-habitats-cdda"></div></article>
+        <article class="chart-panel facet-panel"><div class="panel-heading"><h4>Habitats · Combined</h4></div><div class="chart-scroll" id="facet-habitats-combined"></div></article>
+      </div>
+      <p class="source-note">Article 12 series use the EU bird dataset; Article 17 species and habitat series use Member State datasets, matching the source dashboard.</p>
+    </section>
+
+    <section class="method-band" id="method">
+      <div class="section-wrap content-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">INTERPRETATION</p><h2>How to read the indicator</h2></div>
+          <p>MTA describes representation, not the overall ecological condition of a protected area or the conservation status of a feature.</p>
+        </div>
+        <div class="method-grid">
+          <article class="method-block">
+            <span class="method-index">01</span>
+            <h3>What MTA measures</h3>
+            <p>The indicator estimates the average number of species or habitats adequately conserved by Natura 2000 and/or CDDA areas, using feature-specific targets. It helps assess whether expansion of conservation areas improves biodiversity representation, not only total area coverage.</p>
+          </article>
+          <article class="method-block">
+            <span class="method-index">02</span>
+            <h3>Data and targets</h3>
+            <p>Feature distributions come from official Article 12 (Birds Directive) and Article 17 (Habitats Directive) reporting. Targets use the log-linear approach, bounded between 20% and 90%. Conservation-area coverage uses the Natura 2000 network and CDDA data.</p>
+          </article>
+          <article class="method-block">
+            <span class="method-index">03</span>
+            <h3>Scope and limitations</h3>
+            <p>Distributions, targets and conserved area reflect features reported within the EU. Sensitive species are included in the calculations, so the underlying input data cannot be shared publicly. The indicator can be recalculated with each six-year reporting cycle.</p>
+            <button class="limitations-link" id="limitations-open" type="button" aria-haspopup="dialog" aria-controls="limitations-dialog">Further limitations</button>
+          </article>
+        </div>
+        <div class="data-callout">
+          <div>
+            <p class="eyebrow">DATA VERSION <span id="data-version">02</span></p>
+            <h3>Download the published indicator values</h3>
+            <p>Values are provided as published; please check the repository for updates. The authors and NaturaConnect project take no liability for errors or misinterpretation.</p>
+          </div>
+          <div class="callout-actions">
+            <a class="download-link" href="export/Indicator_factsheet_representativeness_indicator_updated.pdf" target="_blank" rel="noreferrer">Factsheet PDF <span aria-hidden="true">↗</span></a>
+            <a class="download-link" href="https://doi.org/10.5281/zenodo.14196503" target="_blank" rel="noreferrer">Open Zenodo <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <img src="img/NClogo.png" alt="NaturaConnect">
+    <p>Led by Martin Jung (IIASA) for NaturaConnect WP7 · Funded by the European Union's Horizon Europe programme, grant 101060429<br><a href="https://iiasa.ac.at/terms-of-use" target="_blank" rel="noreferrer">IIASA Terms</a></p>
+    <img class="iiasa-logo" src="img/IIASA_logo_white.png" alt="International Institute for Applied Systems Analysis">
+  </footer>
+
+  <dialog class="chart-dialog" id="chart-dialog" aria-labelledby="chart-dialog-title">
+    <div class="chart-dialog-header">
+      <h2 class="chart-dialog-title" id="chart-dialog-title"></h2>
+      <button class="chart-dialog-close" type="button" aria-label="Close enlarged graph">&times;</button>
+    </div>
+    <div class="chart-dialog-content" id="chart-dialog-content"></div>
+  </dialog>
+
+  <dialog class="limitations-dialog" id="limitations-dialog" aria-labelledby="limitations-dialog-title">
+    <div class="chart-dialog-header">
+      <h2 class="chart-dialog-title" id="limitations-dialog-title">Further limitations</h2>
+      <button class="chart-dialog-close" type="button" aria-label="Close limitations">&times;</button>
+    </div>
+    <div class="limitations-dialog-content">
+      <ul>
+        <li>The protected-area total-area summary excludes Turkey, Norway, Switzerland, Iceland, Ukraine and Kosovo from its country mask.</li>
+        <li>Protected-area footprints omit Natura 2000 sites with at least 5% marine area, CDDA areas classified as marine, and CDDA point records.</li>
+        <li>Conservation areas are rasterized on a 10 km grid with fractional cell coverage, so spatial overlaps are grid-based estimates.</li>
+        <li>Land-use adjustment is not applied in this version.</li>
+        <li>Missing Natura 2000 designation dates use fallback dates and ultimately 1992; sites dated 2025 are grouped in 2018-2024.</li>
+        <li>Sensitive species are included, but their confidential source layers are not public, limiting independent reproduction from public inputs.</li>
+      </ul>
+    </div>
+  </dialog>
+</body>
+</html>

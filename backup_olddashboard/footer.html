@@ -1,0 +1,76 @@
+<style>
+  .site-footer {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 68px;
+    padding: 8px clamp(16px, 3vw, 40px);
+    background: #f7f8f5;
+    border-top: 1px solid #d8ded9;
+  }
+
+  .site-footer img {
+    display: block;
+    max-height: 48px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  .site-footer__naturaconnect {
+    grid-column: 1;
+    justify-self: start;
+    width: min(190px, 44vw);
+    object-position: left center;
+  }
+
+  .site-footer__date {
+    grid-column: 2;
+    max-width: 100%;
+    color: #4b554d;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .site-footer__iiasa {
+    grid-column: 3;
+    justify-self: end;
+    width: min(128px, 34vw);
+    filter: brightness(0);
+    object-position: right center;
+  }
+
+  @media (max-width: 480px) {
+    .site-footer {
+      min-height: 60px;
+    }
+
+    .site-footer img {
+      max-height: 40px;
+    }
+
+    .site-footer__date {
+      max-width: 72px;
+      font-size: 0.7rem;
+    }
+  }
+</style>
+
+<footer class="site-footer" aria-label="Project and institutional logos">
+  <img class="site-footer__naturaconnect" src="img/NClogo.png" alt="NaturaConnect">
+  <span class="site-footer__date" aria-label="Dashboard last updated"></span>
+  <img class="site-footer__iiasa" src="img/IIASA_logo_white.png" alt="International Institute for Applied Systems Analysis (IIASA)">
+</footer>
+
+<script>
+  (() => {
+    const renderDate = document.getElementById("dashboard-render-date");
+    const footerDate = document.querySelector(".site-footer__date");
+    if (renderDate && footerDate) {
+      footerDate.textContent = renderDate.textContent.trim();
+    }
+  })();
+</script>

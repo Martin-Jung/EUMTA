@@ -1,18 +1,18 @@
 ---
 title: "Mean target achievement (MTA) indicator"
 author: ""
-logo: "img/NClogo.png"
 format:
   dashboard:
     theme: flatly
     embed-resources: true
     expandable: true
     scrolling: false
+    include-after-body: footer.html
     nav-buttons:
     - icon: linkedin
       href: https://www.linkedin.com/company/naturaconnect/
-    - icon: twitter
-      href: https://twitter.com/NaturaConnect
+    - icon: globe
+      href: https://naturaconnect.eu/
     - icon: github
       href: https://github.com/Martin-Jung/EUMTA
 
@@ -67,11 +67,10 @@ p <- ggplot() + theme_void()
 
 # EU
 
-## Row {height="30%"}
+## Row {height="20%"}
 
 ::: {.valuebox icon="bar-chart-line-fill" color="primary"}
-Overall latest MTA\
-(last updated Nov 2024)
+Overall latest MTA
 
 ```{r Overall stats - MTA,echo=FALSE,warning=FALSE}
 #| include: false
@@ -107,7 +106,7 @@ val <- read.csv(paste0(path_output,"Overall_statistics.csv")) |>
 `{r} val`
 :::
 
-## Row {height="70%"}
+## Row {height="80%"}
 
 ### Column {width="30%"}
 
@@ -315,6 +314,29 @@ cat("\n\n:::\n\n")
 # Indicator factsheet {#sec-indicator-factsheet}
 
 ```{css echo=FALSE}
+.quarto-dashboard .bslib-value-box.valuebox .value-box-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: start;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.quarto-dashboard .bslib-value-box.valuebox .value-box-value {
+  font-size: 2rem;
+}
+.valuebox .value-box-showcase {
+  align-items: center;
+  justify-content: center;
+}
+.quarto-dashboard .bslib-value-box.valuebox .value-box-showcase .bi {
+  font-size: clamp(1rem, 10cqw, 1.85rem);
+  min-width: 0;
+  max-width: 100%;
+}
 .embed-container {
     position: relative;
     padding-bottom: 129%;
@@ -409,3 +431,5 @@ To find out more about our project, please visit our [homepage](https://naturaco
 
 > The MTA indicator calculation and the creation of this dashboard has been led by **Martin Jung** (IIASA) as part of the WP7 of the NaturaConnect project. The information here is provided free of charge and the project takes no responsibility for errors or misuse.
 :::
+
+<span id="dashboard-render-date" hidden>Last updated `r format(Sys.Date(), "%b %Y")`</span>

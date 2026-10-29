@@ -1,0 +1,58 @@
+/* Load after iiasa.css to restore the previous dashboard colors. */
+:root {
+  --ink: #1d3029;
+  --muted: #65756c;
+  --forest: #183c32;
+  --leaf: #5f8c4b;
+  --teal: #258a83;
+  --coral: #cf6848;
+  --gold: #c49335;
+  --blue: #4c8294;
+  --paper: #f3f5ef;
+  --surface: #ffffff;
+  --line: #dbe2d8;
+  --soft-green: #e8eee6;
+  --iiasa-primary: #183c32;
+  --iiasa-primary-light: #eef1eb;
+  --iiasa-white: #ffffff;
+  --chart-combined: #183c32;
+  --chart-natura2000: #258a83;
+  --chart-cdda: #cf6848;
+  --chart-art12: #cf6848;
+  --chart-art17: #5f8c4b;
+  --chart-habitats: #4c8294;
+  --chart-species: #c49335;
+}
+
+h1,
+h2,
+.panel-heading h2 {
+  color: var(--ink);
+}
+
+.section-nav {
+  background: rgb(243 245 239 / 95%);
+}
+
+.section-nav a:hover,
+.section-nav a.active {
+  color: var(--forest);
+}
+
+.data-band {
+  background: #e8eee6;
+  border-color: #dbe4d9;
+}
+
+.method-band {
+  background: #f9faf6;
+  border-color: var(--line);
+}
+
+.chart-svg .series-point {
+  stroke: #ffffff;
+}
+
+.site-footer {
+  background: #eef1eb;
+}

@@ -1,0 +1,80 @@
+:root {
+  --iiasa-primary: #00589d;
+  --iiasa-primary-light: #e6f0f7;
+  --iiasa-white: #ffffff;
+  --iiasa-font-family: Tahoma, Arial, sans-serif;
+  --sans: var(--iiasa-font-family);
+  --serif: var(--iiasa-font-family);
+  --ink: var(--iiasa-primary);
+  --muted: #65756c;
+  --forest: var(--iiasa-primary);
+  --leaf: #5f8c4b;
+  --teal: #258a83;
+  --coral: #cf6848;
+  --gold: #c49335;
+  --blue: #4c8294;
+  --paper: var(--iiasa-white);
+  --surface: var(--iiasa-white);
+  --line: #d7e5ef;
+  --soft-green: var(--iiasa-primary-light);
+  --chart-combined: var(--iiasa-primary);
+  --chart-natura2000: #258a83;
+  --chart-cdda: #cf6848;
+  --chart-art12: #cf6848;
+  --chart-art17: #5f8c4b;
+  --chart-habitats: #4c8294;
+  --chart-species: #c49335;
+}
+
+html,
+body {
+  font-family: var(--iiasa-font-family);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1,
+h2,
+.panel-heading h2 {
+  color: var(--iiasa-primary);
+  font-family: var(--iiasa-font-family);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.section-nav {
+  background: rgb(255 255 255 / 95%);
+}
+
+.section-nav a:hover,
+.section-nav a.active {
+  color: var(--iiasa-primary);
+}
+
+.data-band,
+.method-band {
+  background: var(--iiasa-white);
+  border-color: var(--line);
+}
+
+.chart-svg .series-point {
+  stroke: var(--iiasa-primary);
+}
+
+.site-footer {
+  background: var(--iiasa-primary-light);
+}
+
+.site-footer p a {
+  display: inline-block;
+  margin-top: 3px;
+  color: inherit;
+  font-size: 10px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
