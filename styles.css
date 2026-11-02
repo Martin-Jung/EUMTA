@@ -88,6 +88,7 @@ h4 { margin: 0; font-size: 14px; font-weight: 650; }
 .limitations-dialog-content ul { margin: 0; padding-left: 19px; }
 .limitations-dialog-content li + li { margin-top: 9px; }
 .overview-chart { border-top: 3px solid var(--forest); }
+.difference-chart { margin-top: 14px; }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .panel-heading .eyebrow { margin-bottom: 5px; }
 .panel-heading h2 { font-size: 28px; }
@@ -117,7 +118,7 @@ h4 { margin: 0; font-size: 14px; font-weight: 650; }
 .country-panel .panel-description { margin-bottom: 4px; }
 .country-chart { margin-top: 8px; }
 .country-chart .chart-svg { min-width: 650px; }
-#overall-chart .chart-svg, #targets-chart .chart-svg, #area-chart .chart-svg,
+#overall-chart .chart-svg, #difference-chart .chart-svg, #targets-chart .chart-svg, #area-chart .chart-svg,
 #article-species-chart .chart-svg, #article-habitats-chart .chart-svg { min-width: 650px; }
 .data-band { background: #e8eee6; border-top: 1px solid #dbe4d9; border-bottom: 1px solid #dbe4d9; }
 .data-band .chart-panel { border-color: #d3ded2; }

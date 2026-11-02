@@ -204,6 +204,75 @@ function renderHistogram(container, rows, targetOption) {
   container.innerHTML = parts.join("");
 }
 
+/** Plots period-on-period change in combined MTA against change in combined protected area share, in percentage points. */
+function renderDifferenceChart(container, overallRows, areaRows, targetOption) {
+  const valueAt = (rows, year, field) => {
+    const value = Number(rows.find((row) => row.year === year)?.[field]);
+    return Number.isFinite(value) ? value : null;
+  };
+  const changeBetween = (rows, field, previous, year) => {
+    const start = valueAt(rows, previous, field);
+    const end = valueAt(rows, year, field);
+    return start === null || end === null ? null : (end - start) * 100;
+  };
+  const mtaRows = overallRows.filter((row) => row.ctype === "combined" && row.category === "All");
+  const combinedAreaRows = areaRows.filter((row) => row.ctype === "combined");
+  const intervals = YEARS.slice(1).map((year, index) => ({
+    label: year,
+    mta: changeBetween(mtaRows, "y", YEARS[index], year),
+    share: changeBetween(combinedAreaRows, "fullprop", YEARS[index], year)
+  })).filter((interval) => interval.mta !== null && interval.share !== null);
+  if (!intervals.length) {
+    renderTargetEmpty(container, targetOption);
+    return;
+  }
+
+  const series = [
+    { label: "Change in MTA", color: COLORS.combined, value: (interval) => interval.mta },
+    { label: "Change in combined protected area share", color: COLORS.natura2000, value: (interval) => interval.share }
+  ];
+  const values = intervals.flatMap((interval) => series.map((item) => item.value(interval)));
+  const top = Math.max(0, ...values);
+  const bottom = Math.min(0, ...values);
+  const step = [0.5, 1, 2, 5, 10, 20].find((candidate) => (top - bottom) / candidate <= 6) ?? 20;
+  const minValue = Math.floor(bottom / step) * step;
+  const maxValue = Math.max(Math.ceil(top / step) * step, minValue + step);
+  const ticks = Array.from({ length: Math.round((maxValue - minValue) / step) + 1 }, (_, index) => minValue + index * step);
+  const width = 900;
+  const height = 320;
+  const margin = { top: 20, right: 78, bottom: 58, left: 72 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const groupWidth = plotWidth / intervals.length;
+  const barWidth = Math.min(54, groupWidth * 0.3);
+  const y = (value) => margin.top + ((maxValue - value) / (maxValue - minValue)) * plotHeight;
+  const formatPoints = (value) => `${value > 0 ? "+" : ""}${Number(value.toFixed(1))}`;
+  const parts = [`<svg class="chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Change in MTA against change in combined protected area share">`];
+  ticks.forEach((tick) => {
+    const position = y(tick);
+    parts.push(`<line class="grid-line" x1="${margin.left}" y1="${position}" x2="${width - margin.right}" y2="${position}"></line>`);
+    parts.push(`<text x="${margin.left - 10}" y="${position + 4}" text-anchor="end">${formatPoints(tick)}</text>`);
+  });
+  intervals.forEach((interval, index) => {
+    const centre = margin.left + (index + 0.5) * groupWidth;
+    series.forEach((item, seriesIndex) => {
+      const value = item.value(interval);
+      const barX = centre + (seriesIndex - 0.5) * (barWidth + 6) - barWidth / 2;
+      const barTop = y(Math.max(value, 0));
+      const barBottom = y(Math.min(value, 0));
+      const label = formatPoints(value);
+      parts.push(`<rect x="${barX}" y="${barTop}" width="${barWidth}" height="${barBottom - barTop}" fill="${item.color}"><title>${escapeHtml(`${item.label} · ${interval.label}: ${label} pp`)}</title></rect>`);
+      parts.push(`<text x="${barX + barWidth / 2}" y="${value >= 0 ? barTop - 6 : barBottom + 16}" text-anchor="middle">${label}</text>`);
+    });
+    parts.push(`<text x="${centre}" y="${height - 27}" text-anchor="middle">${escapeHtml(interval.label)}</text>`);
+  });
+  parts.push(`<line class="axis-line" x1="${margin.left}" y1="${y(0)}" x2="${width - margin.right}" y2="${y(0)}"></line>`);
+  parts.push(`<line class="axis-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + plotHeight}"></line>`);
+  parts.push(`<text class="axis-title" transform="translate(17 ${margin.top + plotHeight / 2}) rotate(-90)" text-anchor="middle">Change (percentage points)</text>`);
+  parts.push("</svg>");
+  container.innerHTML = `${parts.join("")}${renderLegend(series)}`;
+}
+
 /** Updates summary values and renders every dashboard chart for the selected target method.
  * @param {{overall: Object[], statistics: Object[], countries: Object[], targets: Object[], areas: Object[], art12: Object[], art17Species: Object[], art17Habitats: Object[]}} data Dashboard datasets.
  * @param {string} [targetOption="loglinear"] Target method used to filter MTA data.
@@ -223,6 +292,7 @@ function renderDashboard(data, targetOption = "loglinear") {
   renderTargetLineChart(document.querySelector("#overall-chart"), overall, [
     { label: "Combined areas", color: COLORS.combined, filter: (row) => row.ctype === "combined" && row.category === "All", value: (row) => row.y }
   ], { threshold: 0.5, label: "Overall mean target achievement trend" }, targetOption);
+  renderDifferenceChart(document.querySelector("#difference-chart"), overall, data.areas, targetOption);
   renderCountryBars(document.querySelector("#features-chart"), data.countries, "nr_features");
   renderCountryBars(document.querySelector("#coverage-chart"), data.countries, "prop");
   renderHistogram(document.querySelector("#targets-chart"), data.targets.filter((row) => row.option === targetOption), targetOption);

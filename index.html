@@ -18,7 +18,7 @@
       <span><strong>A biodiversity based MTA</strong><small>An indicator to support protected area performance evaluation of the EU Biodiversity Strategy 2030</small></span>
     </a>
     <div class="topbar-actions">
-      <div class="target-tools" hidden>
+      <div class="target-tools">
         <label class="target-control" for="target-select">
           <span>Target method</span>
           <select id="target-select" aria-describedby="target-status">
@@ -78,6 +78,17 @@
         </div>
         <p class="panel-description">Mean target achievement across Natura 2000 and CDDA areas. The dotted line marks an MTA of 0.5.</p>
         <div class="chart-scroll" id="overall-chart" aria-live="polite"><div class="chart-loading">Loading indicator data…</div></div>
+      </article>
+      <article class="chart-panel overview-chart difference-chart">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">CHANGE COMPARISON</p>
+            <h2>MTA change against protected area growth</h2>
+          </div>
+          <span class="panel-tag">Change · pp</span>
+        </div>
+        <p class="panel-description">Change since the previous reporting period for combined Natura 2000 and CDDA areas. A taller MTA bar means MTA rose faster than the protected area share.</p>
+        <div class="chart-scroll" id="difference-chart" aria-live="polite"><div class="chart-loading">Loading indicator data…</div></div>
       </article>
       <div id="data-error" class="data-error" role="alert" hidden></div>
       <p class="source-note">Source: Article 12 and Article 17 reporting data, with conservation-area coverage through 2024.</p>
@@ -203,7 +214,6 @@
             <span class="method-index">03</span>
             <h3>Scope and limitations</h3>
             <p>Distributions, targets and conserved area reflect features reported within the EU. Sensitive species are included in the calculations, so the underlying input data cannot be shared publicly. The indicator can be recalculated with each six-year reporting cycle.</p>
-            <button class="limitations-link" id="limitations-open" type="button" aria-haspopup="dialog" aria-controls="limitations-dialog">Further limitations</button>
           </article>
         </div>
         <div class="data-callout">
@@ -233,23 +243,6 @@
       <button class="chart-dialog-close" type="button" aria-label="Close enlarged graph">&times;</button>
     </div>
     <div class="chart-dialog-content" id="chart-dialog-content"></div>
-  </dialog>
-
-  <dialog class="limitations-dialog" id="limitations-dialog" aria-labelledby="limitations-dialog-title">
-    <div class="chart-dialog-header">
-      <h2 class="chart-dialog-title" id="limitations-dialog-title">Further limitations</h2>
-      <button class="chart-dialog-close" type="button" aria-label="Close limitations">&times;</button>
-    </div>
-    <div class="limitations-dialog-content">
-      <ul>
-        <li>The protected-area total-area summary excludes Turkey, Norway, Switzerland, Iceland, Ukraine and Kosovo from its country mask.</li>
-        <li>Protected-area footprints omit Natura 2000 sites with at least 5% marine area, CDDA areas classified as marine, and CDDA point records.</li>
-        <li>Conservation areas are rasterized on a 10 km grid with fractional cell coverage, so spatial overlaps are grid-based estimates.</li>
-        <li>Land-use adjustment is not applied in this version.</li>
-        <li>Missing Natura 2000 designation dates use fallback dates and ultimately 1992; sites dated 2025 are grouped in 2018-2024.</li>
-        <li>Sensitive species are included, but their confidential source layers are not public, limiting independent reproduction from public inputs.</li>
-      </ul>
-    </div>
   </dialog>
 </body>
 </html>

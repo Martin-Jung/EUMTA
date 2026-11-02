@@ -117,176 +117,176 @@ local({
 
   # Loop through each assessment type focussing on EU
   for(name in lyrs$name[1:4]){ # name = lyrs$name[3]
-  message(name)
-  output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
-  if(file.exists(output_file)) next()
+    message(name)
+    output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
+    if(file.exists(output_file)) next()
 
-  data_sens <- sf::read_sf(path_art17,name,quiet = TRUE)
+    data_sens <- sf::read_sf(path_art17,name,quiet = TRUE)
 
-  # Check that name is correct
-  if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$habitatcode
-  if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$speciescode
-  if(!utils::hasName(data_sens, "country")) data_sens$country <- "All"
+    # Check that name is correct
+    if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$habitatcode
+    if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$speciescode
+    if(!utils::hasName(data_sens, "country")) data_sens$country <- "All"
 
-  assertthat::assert_that(utils::hasName(data_sens, "code"))
-  if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
+    assertthat::assert_that(utils::hasName(data_sens, "code"))
+    if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
 
-  results <- foreach(co = unique(data_sens$code),
-                  .inorder = FALSE,
-                  .combine = rbind,
-                  .multicombine = TRUE,
-                  .noexport = c("data_sens", "cas_worker", "name", "aoh"),
-                  .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
-                  .options.snow = list(preschedule = FALSE)
-                  ) %dopar% {
-    # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
-    # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[1]
-    sub <- subset(data_sens, code == co)
-    # pb$tick()
+    results <- foreach(co = unique(data_sens$code),
+                    .inorder = FALSE,
+                    .combine = rbind,
+                    .multicombine = TRUE,
+                    .noexport = c("data_sens", "cas_worker", "name", "aoh"),
+                    .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
+                    .options.snow = list(preschedule = FALSE)
+                    ) %dopar% {
+      # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
+      # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[1]
+      sub <- subset(data_sens, code == co)
+      # pb$tick()
 
-    if(aoh) {
-      # Apply to conservation areas by creating a subset and then applying
-      # management specific priors using the reclassified Corine layer
-      stop("TODO")
+      if(aoh) {
+        # Apply to conservation areas by creating a subset and then applying
+        # management specific priors using the reclassified Corine layer
+        stop("TODO")
+      }
+
+      # Exact extract
+      ex <- exactextractr::exact_extract(cas_worker,
+                                         sub, fun = "sum",
+                                         force_df = TRUE, progress = FALSE)
+      names(ex) <- stringr::str_remove(names(ex), "sum.")
+      assertthat::assert_that(nrow(sub) == nrow(ex))
+
+      # Combine with sub and summarize
+      o <- dplyr::bind_cols(sub, ex)
+      # Split and clear value
+      o <- o |> pivot_longer(cols= names(ex)) |>
+        tidyr::separate(name, into = c("ctype","sep","year"),sep = "_") |>
+        sf::st_drop_geometry() |>
+        dplyr::group_by(maptype, category, ctype, region,country, year, code) |>
+        dplyr::reframe(conservedarea_km2 = units::set_units(sum(value),"km2") )
+      # Add dataset name
+      o <- o |> dplyr::mutate(name = name, .before = "maptype")
+
+      # Also add total distribution area
+      o <- dplyr::left_join(
+        o,
+        sub |> dplyr::group_by(maptype, category, region, country, code) |>
+          dplyr::reframe(totalarea_km2 = units::set_units( sum(sf::st_area(geom)),"km2") )
+      )
+
+      # Check for rounding issues with area distortion in which case, take the maximum
+      if(any(o$conservedarea_km2>=o$totalarea_km2)){
+        message("Area rounding issue found for ", co)
+        o <- o |> dplyr::rowwise() |>
+          dplyr::mutate(totalarea_km2 = pmax(totalarea_km2,conservedarea_km2))
+      }
+      # Check that all area equal/smaller
+      assertthat::assert_that(
+        is.numeric(o$conservedarea_km2),is.numeric(o$totalarea_km2),
+        all(o$totalarea_km2>=o$conservedarea_km2)
+      )
+      return(o)
+      rm(o)
     }
 
-    # Exact extract
-    ex <- exactextractr::exact_extract(cas_worker,
-                                       sub, fun = "sum",
-                                       force_df = TRUE, progress = FALSE)
-    names(ex) <- stringr::str_remove(names(ex), "sum.")
-    assertthat::assert_that(nrow(sub) == nrow(ex))
-
-    # Combine with sub and summarize
-    o <- dplyr::bind_cols(sub, ex)
-    # Split and clear value
-    o <- o |> pivot_longer(cols= names(ex)) |>
-      tidyr::separate(name, into = c("ctype","sep","year"),sep = "_") |>
-      sf::st_drop_geometry() |>
-      dplyr::group_by(maptype, category, ctype, region,country, year, code) |>
-      dplyr::reframe(conservedarea_km2 = units::set_units(sum(value),"km2") )
-    # Add dataset name
-    o <- o |> dplyr::mutate(name = name, .before = "maptype")
-
-    # Also add total distribution area
-    o <- dplyr::left_join(
-      o,
-      sub |> dplyr::group_by(maptype, category, region, country, code) |>
-        dplyr::reframe(totalarea_km2 = units::set_units( sum(sf::st_area(geom)),"km2") )
-    )
-
-    # Check for rounding issues with area distortion in which case, take the maximum
-    if(any(o$conservedarea_km2>=o$totalarea_km2)){
-      message("Area rounding issue found for ", co)
-      o <- o |> dplyr::rowwise() |>
-        dplyr::mutate(totalarea_km2 = pmax(totalarea_km2,conservedarea_km2))
-    }
-    # Check that all area equal/smaller
-    assertthat::assert_that(
-      is.numeric(o$conservedarea_km2),is.numeric(o$totalarea_km2),
-      all(o$totalarea_km2>=o$conservedarea_km2)
-    )
-    return(o)
-    rm(o)
+    assertthat::assert_that(is.data.frame(results))
+    # Save the results
+    saveRDS(object = results, file = output_file)
+    rm(results)
   }
 
-  assertthat::assert_that(is.data.frame(results))
-  # Save the results
-  saveRDS(object = results, file = output_file)
-  rm(results)
-}
+  # --- #
+  # Article 12
+  path_art12 <- "temporary_data/Art12_Art17_SensitiveSpecies/eea_v_3035_10_mio_art12-2013-2018_i_2013-2018_v01_r00/Art12-2013-2018_GPKG/ART12_3035_distribution_data_with_sensitive.gpkg"
+  lyrs <- sf::st_layers(path_art12)
 
-# --- #
-# Article 12
-path_art12 <- "temporary_data/Art12_Art17_SensitiveSpecies/eea_v_3035_10_mio_art12-2013-2018_i_2013-2018_v01_r00/Art12-2013-2018_GPKG/ART12_3035_distribution_data_with_sensitive.gpkg"
-lyrs <- sf::st_layers(path_art12)
+    # Loop through each assessment type and save
+    for(name in lyrs$name){ # name = lyrs$name
+    message(name)
+    output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
+    if(file.exists(output_file)) next()
 
-  # Loop through each assessment type and save
-  for(name in lyrs$name){ # name = lyrs$name
-  message(name)
-  output_file <- paste0("temporary_data/Speciesareas__", if (aoh) "aoh_" else "", name, ".rds")
-  if(file.exists(output_file)) next()
+    data_sens <- sf::read_sf(path_art12,name,quiet = TRUE)
 
-  data_sens <- sf::read_sf(path_art12,name,quiet = TRUE)
+    # Check that name is correct
+    if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$speciescode
+    if(!utils::hasName(data_sens, "country")) data_sens$country <- data_sens$country
 
-  # Check that name is correct
-  if(!utils::hasName(data_sens, "code")) data_sens$code <- data_sens$speciescode
-  if(!utils::hasName(data_sens, "country")) data_sens$country <- data_sens$country
+    # Art 12 has no region, thus we intersect it to determine the region
+    if(!utils::hasName(data_sens, "region")){
+      data_sens$region <- exactextractr::exact_extract(bgbio, data_sens, fun = "mode", summarize_df = F)
+      # Recodify based on the factor levels
+      data_sens$region <- levels(bgbio)[[1]][,2][match(data_sens$region, levels(bgbio)[[1]][,1])]
+      # For missing ones (coastal cell), take nearest region
+      assertthat::assert_that(!anyNA(data_sens$region))
+      rm(ex,check)
+    }
+    assertthat::assert_that(utils::hasName(data_sens, "code"))
+    if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
 
-  # Art 12 has no region, thus we intersect it to determine the region
-  if(!utils::hasName(data_sens, "region")){
-    data_sens$region <- exactextractr::exact_extract(bgbio, data_sens, fun = "mode", summarize_df = F)
-    # Recodify based on the factor levels
-    data_sens$region <- levels(bgbio)[[1]][,2][match(data_sens$region, levels(bgbio)[[1]][,1])]
-    # For missing ones (coastal cell), take nearest region
-    assertthat::assert_that(!anyNA(data_sens$region))
-    rm(ex,check)
-  }
-  assertthat::assert_that(utils::hasName(data_sens, "code"))
-  if (parallelize) parallel::clusterExport(cl, c("data_sens", "name"), envir = environment())
+    results <- foreach(co = unique(data_sens$code),
+                       .inorder = FALSE,
+                       .combine = rbind,
+                       .multicombine = TRUE,
+                       .noexport = c("data_sens", "cas_worker", "name", "aoh"),
+                       .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
+                       .options.snow = list(preschedule = FALSE)
+    ) %dopar% {
+      # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
+      # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[10]
+      sub <- subset(data_sens, code == co)
+      # pb$tick()
 
-  results <- foreach(co = unique(data_sens$code),
-                     .inorder = FALSE,
-                     .combine = rbind,
-                     .multicombine = TRUE,
-                     .noexport = c("data_sens", "cas_worker", "name", "aoh"),
-                     .packages = c("sf", "dplyr", "tidyr", "exactextractr", "terra", "assertthat"),
-                     .options.snow = list(preschedule = FALSE)
-  ) %dopar% {
-    # pb <- progress::progress_bar$new(total = length(unique(data_sens$code)))
-    # for(co in unique(data_sens$code)){ # co = unique(data_sens$code)[10]
-    sub <- subset(data_sens, code == co)
-    # pb$tick()
+      if(aoh) {
+        # Apply to conservation areas by creating a subset and then applying
+        # management specific priors using the reclassified Corine layer
+        stop("TODO")
+      }
 
-    if(aoh) {
-      # Apply to conservation areas by creating a subset and then applying
-      # management specific priors using the reclassified Corine layer
-      stop("TODO")
+      # Exact extract
+      ex <- exactextractr::exact_extract(cas_worker,
+                                         sub, fun = "sum",
+                                         force_df = TRUE, progress = FALSE)
+      names(ex) <- stringr::str_remove(names(ex), "sum.")
+      # Combine with sub and summarize
+      o <- dplyr::bind_cols(sub, ex)
+      # Split and clear value
+      o <- o |> pivot_longer(cols= names(ex)) |>
+        tidyr::separate(name, into = c("ctype","sep","year"),sep = "_") |>
+        dplyr::group_by(maptype, season, ctype, region, country, year, code) |>
+        dplyr::reframe(conservedarea_km2 = units::set_units(sum(value),"km2") )
+      # Add dataset name
+      o <- o |> dplyr::mutate(name = name, .before = "maptype")
+      # And other species_code
+      o <- o |> dplyr::mutate(speciescodeEU = unique(sub$speciescodeEU), .before = "code")
+
+      # Also add total distribution area
+      o <- dplyr::left_join(
+        o,
+        sub |> dplyr::group_by(maptype, season, region, country, code) |>
+          dplyr::reframe(totalarea_km2 = units::set_units( sum(sf::st_area(geom)),"km2") )
+      )
+      # Check for rounding issues with area distortion in which case, take the maximum
+      if(any(o$conservedarea_km2>=o$totalarea_km2)){
+        message("Area rounding issue found for ", co)
+        o <- o |> dplyr::rowwise() |>
+          dplyr::mutate(totalarea_km2 = pmax(totalarea_km2,conservedarea_km2))
+      }
+      # Check that all area equal/smaller
+      assertthat::assert_that(
+        is.numeric(o$conservedarea_km2),is.numeric(o$totalarea_km2),
+        all(o$totalarea_km2>=o$conservedarea_km2)
+      )
+      return(o)
+      rm(o)
     }
 
-    # Exact extract
-    ex <- exactextractr::exact_extract(cas_worker,
-                                       sub, fun = "sum",
-                                       force_df = TRUE, progress = FALSE)
-    names(ex) <- stringr::str_remove(names(ex), "sum.")
-    # Combine with sub and summarize
-    o <- dplyr::bind_cols(sub, ex)
-    # Split and clear value
-    o <- o |> pivot_longer(cols= names(ex)) |>
-      tidyr::separate(name, into = c("ctype","sep","year"),sep = "_") |>
-      dplyr::group_by(maptype, season, ctype, region, country, year, code) |>
-      dplyr::reframe(conservedarea_km2 = units::set_units(sum(value),"km2") )
-    # Add dataset name
-    o <- o |> dplyr::mutate(name = name, .before = "maptype")
-    # And other species_code
-    o <- o |> dplyr::mutate(speciescodeEU = unique(sub$speciescodeEU), .before = "code")
+    assertthat::assert_that(is.data.frame(results))
 
-    # Also add total distribution area
-    o <- dplyr::left_join(
-      o,
-      sub |> dplyr::group_by(maptype, season, region, country, code) |>
-        dplyr::reframe(totalarea_km2 = units::set_units( sum(sf::st_area(geom)),"km2") )
-    )
-    # Check for rounding issues with area distortion in which case, take the maximum
-    if(any(o$conservedarea_km2>=o$totalarea_km2)){
-      message("Area rounding issue found for ", co)
-      o <- o |> dplyr::rowwise() |>
-        dplyr::mutate(totalarea_km2 = pmax(totalarea_km2,conservedarea_km2))
-    }
-    # Check that all area equal/smaller
-    assertthat::assert_that(
-      is.numeric(o$conservedarea_km2),is.numeric(o$totalarea_km2),
-      all(o$totalarea_km2>=o$conservedarea_km2)
-    )
-    return(o)
-    rm(o)
-  }
-
-  assertthat::assert_that(is.data.frame(results))
-
-  # Save the results
-  saveRDS(object = results, file = output_file)
-  rm(results)
+    # Save the results
+    saveRDS(object = results, file = output_file)
+    rm(results)
   }
 })
 
