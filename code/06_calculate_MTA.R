@@ -182,6 +182,10 @@ write.csv(tr_loglinear |>
             dplyr::select(option, target_relative),
           paste0("export/Overall_targetsloglinear_",scale,"_",version,".csv"),
                  row.names = FALSE)
+write.csv(tr_exrisk |>
+            dplyr::select(option, target_relative),
+          paste0("export/Overall_targetsextinctrisk_",scale,"_",version,".csv"),
+          row.names = FALSE)
 
 # --- #
 # Calculate the average MTA across time periods for the various targets
@@ -227,8 +231,8 @@ tr3 <- peryear |> units::drop_units() |>
 # Combine
 tr <- dplyr::bind_rows(
   #tr1,
-  tr2
-  #tr3
+  tr2,
+  tr3
   ) |>
   # Add variables
   dplyr::mutate(variable = "All",
@@ -241,8 +245,10 @@ tr <- dplyr::bind_rows(
 assertthat::assert_that(nrow(tr)>0, all(dplyr::between(tr$y,0,1)))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_loglinear_",scale,"_All_All_",version,".csv")
-write.csv(tr, ofname, row.names = FALSE)
+for(method in c("loglinear", "extinctrisk")){
+  ofname <- paste0(path_output, "MTA_",method,"_",scale,"_All_All_",version,".csv")
+  write.csv(dplyr::filter(tr, option == method), ofname, row.names = FALSE)
+}
 
 # ----------- #
 # Overall per dataset (Art 17, species, habitat, etc...)
@@ -355,8 +361,8 @@ for(i in 1:nrow(biodiversity) ){
   # Combine
   tr <- dplyr::bind_rows(
     #tr1,
-    tr2
-    #tr3
+    tr2,
+    tr3
     ) |>
     # Add variables
     dplyr::mutate(variable = {{variable}},
@@ -365,8 +371,10 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_loglinear_",scale,"_Art",art,"_",variable,"_",version,".csv")
-  write.csv(tr, ofname, row.names = FALSE)
+  for(method in c("loglinear", "extinctrisk")){
+    ofname <- paste0(path_output, "MTA_",method,"_",scale,"_Art",art,"_",variable,"_",version,".csv")
+    write.csv(dplyr::filter(tr, option == method), ofname, row.names = FALSE)
+  }
 }
 stop("DONE with all EU wide MTA computations...")
 
@@ -448,6 +456,10 @@ write.csv(tr_loglinear |>
             dplyr::select(option, target_relative),
           paste0("export/Overall_targetsloglinear_",scale,"_",version,".csv"),
           row.names = FALSE)
+write.csv(tr_exrisk |>
+            dplyr::select(option, target_relative),
+          paste0("export/Overall_targetsextinctrisk_",scale,"_",version,".csv"),
+          row.names = FALSE)
 
 # --- #
 # Calculate the average MTA across time periods for the various targets
@@ -495,8 +507,8 @@ tr3 <- peryear |> units::drop_units() |>
 # Combine
 tr <- dplyr::bind_rows(
   #tr1,
-  tr2
-  #, tr3
+  tr2,
+  tr3
   ) |>
   # Add variables
   dplyr::mutate(variable = "All",
@@ -505,8 +517,10 @@ tr <- dplyr::bind_rows(
   dplyr::mutate(art = paste0("Art_",art))
 
 # Write the output
-ofname <- paste0(path_output, "MTA_loglinear_",scale,"_All_All_",version,".csv")
-write.csv(tr, ofname, row.names = FALSE)
+for(method in c("loglinear", "extinctrisk")){
+  ofname <- paste0(path_output, "MTA_",method,"_",scale,"_All_All_",version,".csv")
+  write.csv(dplyr::filter(tr, option == method), ofname, row.names = FALSE)
+}
 
 # ----------- #
 for(i in 1:nrow(biodiversity) ){
@@ -614,8 +628,8 @@ for(i in 1:nrow(biodiversity) ){
   # Combine
   tr <- dplyr::bind_rows(
     #tr1,
-    tr2
-    #, tr3
+    tr2,
+    tr3
     ) |>
     # Add variables
     dplyr::mutate(variable = {{variable}},
@@ -624,8 +638,10 @@ for(i in 1:nrow(biodiversity) ){
     dplyr::mutate(art = paste0("Art_",art))
 
   # Write the output
-  ofname <- paste0(path_output, "MTA_loglinear_",scale,"_Art",art,"_",variable,"_",version,".csv")
-  write.csv(tr, ofname, row.names = FALSE)
+  for(method in c("loglinear", "extinctrisk")){
+    ofname <- paste0(path_output, "MTA_",method,"_",scale,"_Art",art,"_",variable,"_",version,".csv")
+    write.csv(dplyr::filter(tr, option == method), ofname, row.names = FALSE)
+  }
 }
 stop("DONE with all EU MS MTA computations...")
 

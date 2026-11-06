@@ -17,13 +17,21 @@
 #' - `"frr"`: Target calculation based on the FRR method.
 #' @param default_target A [`numeric`] value between 0 and 1 indicating the
 #' default target for the flat target calculation (only used if `option` is `"flat"`).
+#' @param target_cap A [`numeric`] indicator at which amount representation targets should
+#' be capped. This is to prevent unfeasible targets too large to be realistically
+#' managed (following Butchart et al., 2015). Set to \code{Inf} if not desired.
+#'
+#' @references
+#' * Butchart, Stuart HM, et al. "Shortfalls and solutions for meeting national and global conservation area targets." Conservation Letters 8.5 (2015): 329-337.
+#' * Rodrigues, Ana SL, et al. "Effectiveness of the global protected area network in representing species diversity." Nature 428.6983 (2004): 640-643.
 #'
 #' @author Martin Jung
 #' @keywords targets, indicators
 #' @export
 calc_targets <- function(data = NULL,
                          current_range, potential_range,
-                         option = "flat", default_target = 0.3){
+                         option = "flat", default_target = 0.3,
+                         target_cap = 10000000){
   assertthat::assert_that(
     is.character(option),
     # Check numeric range
@@ -62,11 +70,18 @@ calc_targets <- function(data = NULL,
     ) * potential_range
 
     # Cap to 1 million km2
-    if(any(tr>1e6)) tr[tr>1e6] <- 1e6
+    if(is.finite(target_cap)){
+      tr <- ifelse(
+        potential_range >= target_cap,
+        (target_cap / potential_range),
+        tr
+      )
+    }
+
     # Format output
     out <- data.frame(option = option,
                       target_absolute = tr,
-                      target_relative = (tr / potential_range) )
+                      target_relative = max((tr / potential_range), 1) )
   } else if(option == "extinctrisk"){
     # Resolution is in km!
     assertthat::assert_that(
@@ -77,7 +92,7 @@ calc_targets <- function(data = NULL,
       dplyr::group_by(ctype, code) |>  # Per species
       dplyr::reframe(
         size = sum(totalarea_km2),
-        target_absolute = min( c( max( c(22000), 0.8 * size  ) ), 10^6 )
+        target_absolute = min( c( max( c(22000), 0.8 * size  ) ), target_cap )
       ) |>
       ungroup() |>
       # Add relative target as well

@@ -1,5 +1,5 @@
 const YEARS = ["<2000", "2000-2006", "2006-2012", "2012-2018", "2018-2024"];
-const TARGET_LABELS = { loglinear: "Log-linear", flat: "Flat", extinction: "Extinction" };
+const TARGET_LABELS = { loglinear: "Log-linear", extinctrisk: "Extinction risk" };
 const COLORS = {
   combined: "var(--chart-combined)", natura2000: "var(--chart-natura2000)", cdda: "var(--chart-cdda)",
   art12: "var(--chart-art12)", art17: "var(--chart-art17)", Habitats: "var(--chart-habitats)", Species: "var(--chart-species)"
@@ -299,7 +299,7 @@ function renderDashboard(data, targetOption = "loglinear") {
 
   const areaTypes = ["natura2000", "cdda", "combined"];
   renderLineChart(document.querySelector("#area-chart"), data.areas, areaTypes.map((type) => ({
-    label: type === "natura2000" ? "Natura 2000" : type === "cdda" ? "CDDA" : "Combined",
+    label: type === "natura2000" ? "Natura 2000" : type === "cdda" ? "NatDa" : "Combined",
     color: COLORS[type], filter: (row) => row.ctype === type, value: (row) => row.area_km2
   })), { min: 0, max: 2000000, ticks: [0, 500000, 1000000, 1500000, 2000000], formatTick: (value) => `${(value / 1000000).toFixed(1)}m`, yAxisTitle: "Area (km²)", height: 300, label: "Cumulative protected area by area type" });
 
@@ -316,7 +316,8 @@ function renderDashboard(data, targetOption = "loglinear") {
     const selector = `#facet-${category}-${type}`;
     const categoryRows = articles.filter((row) => String(row.category).toLowerCase() === category && row.ctype === type);
     const availableSeries = articleSeries.filter((series) => categoryRows.some(series.filter));
-    renderTargetLineChart(document.querySelector(selector), categoryRows, availableSeries, { threshold: 0.5, width: 520, height: 250, label: `MTA for ${category}, ${type}` }, targetOption);
+    const areaLabel = type === "natura2000" ? "Natura 2000" : type === "cdda" ? "NatDa" : "Combined";
+    renderTargetLineChart(document.querySelector(selector), categoryRows, availableSeries, { threshold: 0.5, width: 520, height: 250, label: `MTA for ${category}, ${areaLabel}` }, targetOption);
   }));
 }
 
